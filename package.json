@@ -1,0 +1,20 @@
+{
+  "name": "hulog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "静态博客生成器——Hexo 内容模型 + Astro 式 TSX 主题",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r run clean && node -e \"fs.rmSync('node_modules/.cache', { recursive: true, force: true })\"",
+    "dev": "pnpm --filter @hulog/cli dev",
+    "demo:dev": "cd examples/demo && node ../../packages/cli/dist/index.js dev",
+    "demo:build": "cd examples/demo && node ../../packages/cli/dist/index.js build",
+    "demo:clean": "cd examples/demo && node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
