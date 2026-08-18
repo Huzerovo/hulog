@@ -72,8 +72,6 @@ export interface PluginAPI {
   helper(name: string, fn: Function): void;
   /** 注册自定义资源处理器 */
   process(handler: AssetProcessor): void;
-  /** 添加虚拟模块（供主题引用） */
-  addVirtualModule(name: string, content: string): void;
   /** 访问站点配置 */
   config: SiteConfig;
   /** 站点对象（afterInit 之后可用） */

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Asset, Page, SiteConfig } from "./types/index.js";
+import type { Asset, Page } from "./types/index.js";
 
 /**
  * 资源收集与引用解析
@@ -10,6 +10,8 @@ export interface AssetScanResult {
   assets: Asset[];
   /** 散落文件（既不在专属目录也不在 assetsDir），警告用 */
   stray: string[];
+  /** 页面 id → 文章专属目录绝对路径（resolveAssetRef 复用，避免逐次磁盘探测） */
+  postDirByPageId: Map<string, string>;
 }
 
 /** 是否为外部/绝对 URL（原样保留） */
@@ -33,19 +35,6 @@ export interface ResolveContext {
 }
 
 /**
- * 解析文章专属目录（content/posts/my-post.md → content/posts/my-post/）
- */
-export function postAssetDir(page: Page): string | null {
-  if (!page.sourcePath) return null;
-  const base = path.basename(page.sourcePath).replace(/\.md$/i, "");
-  const dir = path.dirname(page.sourcePath);
-  const candidate = path.join(dir, base);
-  return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()
-    ? candidate
-    : null;
-}
-
-/**
  * 解析资源引用：
  * - 外部/锚点/查询串 → 原样
  * - /assets/ 绝对路径 → 校验全局资源存在，原样返回
@@ -60,16 +49,19 @@ export function resolveAssetRef(
 ): string | null {
   if (isExternalRef(ref)) return ref;
 
-  // 绝对路径：/assets/xxx
-  if (ref.startsWith("/")) {
-    const rel = ref.replace(/^\/+/, "");
+  // 绝对路径：/assets/xxx（URL 前缀 → assetsDir 下对应文件）
+  if (ref.startsWith("/assets/")) {
+    const rel = ref.replace(/^\/assets\//, "");
     const abs = path.join(ctx.assetsDirAbs, rel);
     if (fs.existsSync(abs)) return ref;
     return null;
   }
 
-  // 相对路径：先专属目录
-  const postDir = postAssetDir(page);
+  // 其他以 / 开头的绝对路径（如部署根相对引用）原样保留
+  if (ref.startsWith("/")) return ref;
+
+  // 相对路径：先专属目录（目录映射在 scanAssets 阶段预扫描，避免逐次 stat）
+  const postDir = ctx.postDirByPageId.get(page.id);
   if (postDir) {
     const abs = path.resolve(postDir, ref);
     if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
@@ -104,12 +96,14 @@ export function scanAssets(opts: {
 
   // 文章专属目录：页面源文件同名目录
   const postDirs = new Map<string, { dir: string; page: Page }>();
+  const postDirByPageId = new Map<string, string>();
   for (const page of pages) {
     if (!page.sourcePath) continue;
     const base = path.basename(page.sourcePath).replace(/\.md$/i, "");
     const dir = path.join(path.dirname(page.sourcePath), base);
     if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
       postDirs.set(path.resolve(dir), { dir, page });
+      postDirByPageId.set(page.id, path.resolve(dir));
     }
   }
 
@@ -146,27 +140,34 @@ export function scanAssets(opts: {
 
   // 全局资源：assetsDir
   if (fs.existsSync(assetsDirAbs)) {
-    const walkGlobal = (dir: string, relBase: string) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const abs = path.join(dir, entry.name);
-        const rel = relBase ? `${relBase}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) {
-          walkGlobal(abs, rel);
-        } else if (entry.isFile()) {
-          assets.push({
-            sourcePath: abs,
-            url: "/assets/" + rel.replace(/\\/g, "/"),
-            buffer: fs.readFileSync(abs),
-            type: assetType(entry.name),
-            belongsTo: "global",
-          });
-        }
-      }
-    };
-    walkGlobal(assetsDirAbs, "");
+    assets.push(...scanDirectoryAssets(assetsDirAbs, "/assets"));
   }
 
-  return { assets, stray };
+  return { assets, stray, postDirByPageId };
+}
+
+/** 扫描目录内全部文件为全局 Asset（url = urlPrefix + 相对路径） */
+export function scanDirectoryAssets(dir: string, urlPrefix: string): Asset[] {
+  const out: Asset[] = [];
+  const walk = (d: string, relBase: string) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const abs = path.join(d, entry.name);
+      const rel = relBase ? `${relBase}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(abs, rel);
+      } else if (entry.isFile()) {
+        out.push({
+          sourcePath: abs,
+          url: urlPrefix + "/" + rel.replace(/\\/g, "/"),
+          buffer: fs.readFileSync(abs),
+          type: assetType(entry.name),
+          belongsTo: "global",
+        });
+      }
+    }
+  };
+  walk(dir, "");
+  return out;
 }
 
 /** 按扩展名推断资源类型 */

@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import { build, type Plugin as EsbuildPlugin } from "esbuild";
 import { h } from "preact";
 import { render } from "preact-render-to-string";
-import type { LayoutProps, SiteConfig, Theme } from "./types/index.js";
-import { __getHelpers } from "./runtime.js";
+import type { LayoutProps, Theme } from "./types/index.js";
+import type { HelperRegistry } from "./runtime.js";
 
 /**
  * 主题加载与渲染
@@ -63,9 +63,9 @@ export function resolveThemeDir(themeName: string, projectRoot: string): string 
 
 /**
  * esbuild 虚拟模块插件：让主题代码可 `import { helper } from "hulog:helpers"`。
- * 导出列表在 bundle 时从 helper 注册表生成。
+ * 导出列表在 bundle 时从本次构建的 helper 注册表生成。
  */
-function helpersVirtualPlugin(): EsbuildPlugin {
+function helpersVirtualPlugin(registry: HelperRegistry): EsbuildPlugin {
   return {
     name: "hulog-virtual-helpers",
     setup(build) {
@@ -74,8 +74,7 @@ function helpersVirtualPlugin(): EsbuildPlugin {
         namespace: "hulog",
       }));
       build.onLoad({ filter: /.*/, namespace: "hulog" }, () => {
-        const helpers = __getHelpers();
-        const names = Object.keys(helpers);
+        const names = Object.keys(registry.getHelpers());
         const exports = names
           .map(
             (n) =>
@@ -100,6 +99,7 @@ function helpersVirtualPlugin(): EsbuildPlugin {
 export async function loadTheme(
   themeName: string,
   projectRoot: string,
+  registry: HelperRegistry,
 ): Promise<LoadedTheme> {
   const dir = resolveThemeDir(themeName, projectRoot);
   const entry = path.join(dir, "index.ts");
@@ -136,7 +136,7 @@ export async function loadTheme(
       ".woff2": "file",
       ".ttf": "file",
     },
-    plugins: [helpersVirtualPlugin()],
+    plugins: [helpersVirtualPlugin(registry)],
     alias: PREACT_EXTERNALS,
     // runtime 与 preact 系列必须 external：与核心进程共享同一实例
     // （runtime 共享 helpers 注册表；preact 共享 context 单实例）
@@ -197,8 +197,4 @@ export function readThemeStyles(loaded: LoadedTheme): string | undefined {
  */
 export function themeAssetsPrefix(themeName: string, mode?: string): string {
   return mode === "namespace" ? `/assets/${themeName}` : "/assets";
-}
-
-export function mergeSiteConfig(config: SiteConfig): SiteConfig {
-  return config;
 }

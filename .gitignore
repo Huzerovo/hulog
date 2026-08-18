@@ -11,3 +11,6 @@ design-doc.md
 
 # 设计文档备份
 *.orig.backup
+
+pnpm-lock.yaml
+pnpm-workspace.yaml

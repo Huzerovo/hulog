@@ -42,7 +42,7 @@ function makeTsLoader() {
  * 加载站点配置：
  * cosmiconfig 负责查找配置文件，TS/ESM 配置经 jiti 动态加载。
  */
-export async function loadConfig(cwd: string): Promise<SiteConfig> {
+export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
   const explorer = cosmiconfig(MODULE_NAME, {
     searchPlaces: SEARCH_PLACES,
     loaders: {

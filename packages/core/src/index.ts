@@ -16,7 +16,7 @@ export {
   categoryPathToUrl,
   buildCategoryTree,
 } from "./category.js";
-export { loadConfig, defineConfig } from "./config.js";
+export { loadSiteConfig, defineConfig } from "./config.js";
 export { loadTheme, renderPage, resolveThemeDir } from "./theme.js";
 export { renderMarkdown } from "./markdown.js";
 export { AsyncHookImpl } from "./hook.js";
@@ -24,6 +24,5 @@ export { SiteImpl, CollectionImpl } from "./site.js";
 export {
   scanAssets,
   resolveAssetRef,
-  postAssetDir,
   type AssetScanResult,
 } from "./assets.js";
