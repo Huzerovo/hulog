@@ -25,7 +25,8 @@ program
   .command("dev")
   .description("启动开发服务器（热重载）")
   .option("-p, --port <port>", "端口", "3000")
-  .action((opts) => devCmd({ port: Number(opts.port) }));
+  .option("-b, --base <path>", "网站根目录", process.cwd())
+  .action((opts) => devCmd({ port: Number(opts.port), base: opts.base }));
 
 program
   .command("build")

@@ -6,6 +6,7 @@ import chokidar from "chokidar";
 import { build } from "@hulog/core";
 
 export interface DevOptions {
+  base: string;
   port: number;
 }
 
@@ -37,7 +38,7 @@ const RELOAD_SCRIPT = (port: number) => `<script>
 </script>`;
 
 export async function devCmd(opts: DevOptions) {
-  const cwd = process.cwd();
+  const cwd = opts.base;
   const port = opts.port;
   const distDir = path.join(cwd, "dist");
 

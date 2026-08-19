@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadConfig } from "@hulog/core";
+import { loadSiteConfig } from "@hulog/core";
 
 export interface NewOptions {
   title: string;
@@ -20,7 +20,7 @@ export function slugify(title: string): string {
 
 export async function newCmd(opts: NewOptions) {
   const cwd = process.cwd();
-  const config = await loadConfig(cwd);
+  const config = await loadSiteConfig(cwd);
   const draftByDefault = config.cli?.newPostDraft !== false;
   const contentRoot = path.join(cwd, config.content?.rootDir ?? "content");
 

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import { loadConfig } from "@hulog/core";
+import { loadSiteConfig } from "@hulog/core";
 import { slugify } from "./new.js";
 
 export interface PublishOptions {
@@ -13,7 +13,7 @@ export interface PublishOptions {
 
 export async function publishCmd(opts: PublishOptions) {
   const cwd = process.cwd();
-  const config = await loadConfig(cwd);
+  const config = await loadSiteConfig(cwd);
   const contentRoot = path.join(cwd, config.content?.rootDir ?? "content");
   const draftsDir = path.join(contentRoot, "drafts");
 
