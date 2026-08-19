@@ -14,3 +14,7 @@ design-doc.md
 
 pnpm-lock.yaml
 pnpm-workspace.yaml
+
+docs/
+
+AGENTS.md

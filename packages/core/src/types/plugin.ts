@@ -3,9 +3,12 @@ import type { SiteConfig } from "./config.js";
 import type { Collection } from "./collection.js";
 import type { Page } from "./page.js";
 import type { Asset } from "./asset.js";
+import type { RendererRegistry } from "./renderer.js";
 
 /**
  * 插件系统
+ * 插件按文件前缀分为 generator / hook / renderer 三类，在可配置目录（默认 plugins/）中自动发现。
+ * 每个插件文件默认导出 `(api) => void | Promise<void>`，api 类型由前缀决定。
  * 钩子采用 tapable 风格：同步/异步顺序执行。
  */
 
@@ -41,8 +44,8 @@ export interface Hooks {
   afterGenerate: AsyncHook<[Page[]]>;
   beforeProcess: AsyncHook<[Asset[]]>;
   afterProcess: AsyncHook<[Asset[]]>;
-  beforeRender: AsyncHook<[Page]>; // 可拦截并替换默认渲染
-  afterRender: AsyncHook<[Page]>; // 可修改 page.content
+  beforeRender: AsyncHook<[Page]>; // 渲染前拦截（不可替换 render，仅可修改 page/准备）
+  afterRender: AsyncHook<[Page]>; // 渲染后可修改 page.content / metadata
   beforeWrite: AsyncHook<[Page[], Asset[]]>;
   afterWrite: AsyncHook<[]>;
 }
@@ -55,35 +58,34 @@ export interface GeneratorRegistry {
   ): void;
 }
 
-/** 资源处理器（process 阶段） */
-export interface AssetProcessor {
-  (assets: Asset[]): void | Promise<void>;
+/** 模板辅助函数注册表（统一 registry 风格） */
+export interface HelperRegistry {
+  register(name: string, fn: Function): void;
 }
 
-/**
- * PluginAPI —— 插件可用的全部能力
- */
-export interface PluginAPI {
-  /** 注册钩子 */
-  hooks: Hooks;
-  /** 注册生成器 */
-  generator: GeneratorRegistry;
-  /** 注册模板辅助函数（TSX 组件内可 import；核心内置 assetUrl/themeAsset/pickCover 等） */
-  helper(name: string, fn: Function): void;
-  /** 注册自定义资源处理器 */
-  process(handler: AssetProcessor): void;
+/** 全部类型插件共享的基础能力 */
+export interface PluginBase {
   /** 访问站点配置 */
   config: SiteConfig;
-  /** 站点对象（afterInit 之后可用） */
-  site?: Site;
   /** 项目根目录 */
   cwd: string;
+  /** 站点对象（afterInit 之后可用） */
+  site?: Site;
+  /** 注册模板辅助函数（TSX 组件内可 import；核心内置 assetUrl/themeAsset/pickCover 等） */
+  helper: HelperRegistry;
 }
 
-/**
- * Plugin —— 插件定义（npm 包或本地文件默认导出）
- */
-export interface Plugin {
-  name: string;
-  apply(api: PluginAPI): void | Promise<void>;
+/** generator 插件 api（plugins/generator-*.ts） */
+export interface GeneratorAPI extends PluginBase {
+  generator: GeneratorRegistry;
+}
+
+/** hook 插件 api（plugins/hook-*.ts） */
+export interface HookAPI extends PluginBase {
+  hook: Hooks;
+}
+
+/** renderer 插件 api（plugins/renderer-*.ts） */
+export interface RendererAPI extends PluginBase {
+  renderer: RendererRegistry;
 }

@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { parseFile, type ParseContext } from "../src/parse.js";
-import type { CollectionConfig, SiteConfig } from "../src/types/index.js";
+import { parseFile } from "../src/parse.js";
+import type { CollectionConfig } from "../src/types/index.js";
 
 const tmpDirs: string[] = [];
 function tmpRoot(): string {
@@ -35,24 +35,19 @@ const posts: CollectionConfig = {
   sortBy: "date",
 };
 // 草稿区配置：无需 date（对应 build.ts 的 DRAFTS_COLLECTION_CONFIG）
-const drafts: CollectionConfig = {
-  name: "drafts",
-  sourceDir: "drafts",
-  routePattern: "/draft/:slug/",
-  defaultLayout: "post",
-};
-const ctx: ParseContext = {
-  config: { siteTitle: "t", theme: "x", collections: [posts] } satisfies SiteConfig,
-  contentRoot: "/",
-  projectRoot: "/",
-};
+  const drafts: CollectionConfig = {
+    name: "drafts",
+    sourceDir: "drafts",
+    routePattern: "/draft/:slug/",
+    defaultLayout: "post",
+  };
 
 function parse(relPath: string, content: string, collection = posts) {
   const root = tmpRoot();
   const file = path.join(root, relPath);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, content);
-  return parseFile(file, relPath, collection.name, collection, ctx);
+  return parseFile(file, relPath, collection.name, collection);
 }
 
 test("front-matter 字段映射与 data 透传", () => {

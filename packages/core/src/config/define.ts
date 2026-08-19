@@ -11,6 +11,7 @@ export function defineConfig(config: DefineConfigInput): SiteConfig {
     markdown: { highlight: true, katex: true, clientHighlight: false },
     server: { port: 3000, hot: true },
     cli: { newPostDraft: true },
+    pluginsDir: "plugins",
     language: "zh-CN",
     perPage: 10,
     archiveDir: "archive",

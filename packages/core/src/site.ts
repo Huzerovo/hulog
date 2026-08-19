@@ -66,6 +66,11 @@ export class SiteImpl implements Site {
     return this._assets;
   }
 
+  /** 由 build 阶段设置全部资源（专属 + 全局） */
+  setAssets(assets: Asset[]): void {
+    this._assets = assets;
+  }
+
   getAssets(dir: string): Asset[] {
     return this._assets.filter((a) => a.sourcePath.startsWith(dir));
   }

@@ -5,7 +5,7 @@ import less from "less";
 import { AsyncHookImpl } from "./hook.js";
 import { loadSiteConfig, loadThemeConfig } from "./config.js";
 import { SiteImpl, CollectionImpl } from "./site.js";
-import { parseFile, type ParseContext } from "./parse.js";
+import { parseFile } from "./parse.js";
 import { renderMarkdown } from "./markdown.js";
 import {
   loadTheme,
@@ -24,15 +24,19 @@ import {
   setCurrentHelpers,
   type HelperRegistry,
 } from "./runtime.js";
+import { toPosixPath } from "./path.js";
 import { registerCoreHelpers } from "./helpers.js";
+import { RendererRegistryImpl } from "./renderer.js";
 import type {
   Asset,
   Collection,
   FileEntry,
+  GeneratorAPI,
+  HookAPI,
   Hooks,
   Page,
-  Plugin,
-  PluginAPI,
+  RendererAPI,
+  Renderer,
   Site,
   SiteConfig,
 } from "./types/index.js";
@@ -89,36 +93,49 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   const hooks = createHooks();
 
-  // ---- init ----
-  await hooks.beforeInit.call(siteConfig);
-  const site = new SiteImpl();
-  await hooks.afterInit.call(site);
-
-  // ---- 插件 ----
-  // 本次构建独立的 helper 注册表：插件经 api.helper 注册，主题经虚拟模块使用。
+  // 本次构建独立的 helper 注册表：插件经 api.helper.register 注册，主题经虚拟模块使用。
   // 每次 build 新建，避免 dev 热重建 / 多次构建之间累积与泄漏。
   const helpers: HelperRegistry = createHelperRegistry();
   registerCoreHelpers(helpers);
   setCurrentHelpers(helpers);
 
-  const processHandlers: ((assets: Asset[]) => void | Promise<void>)[] = [];
-  const generators: { name: string; fn: (site: Site) => Page[] | Promise<Page[]> }[] = [];
-  const api: PluginAPI = {
-    hooks,
+  const generators: {
+    name: string;
+    fn: (site: Site) => Page[] | Promise<Page[]>;
+  }[] = [];
+  const rendererRegistry = new RendererRegistryImpl();
+  // 内置默认 renderer（markdown 渲染）；用户 renderer 经 api.renderer.register 覆盖之
+  rendererRegistry.register("markdown", renderMarkdown as Renderer);
+
+  // 各类型插件 api：共享 config / cwd / helper / site
+  const base = { config: siteConfig, cwd, helper: helpers };
+  const generatorApi: GeneratorAPI = {
+    ...base,
     generator: {
       register(name, fn) {
         generators.push({ name, fn });
       },
     },
-    helper: (name, fn) => helpers.register(name, fn),
-    process: (handler) => processHandlers.push(handler),
-    config: siteConfig,
-    cwd,
   };
-  await loadPlugins(siteConfig, cwd, api);
+  const hookApi: HookAPI = { ...base, hook: hooks };
+  const rendererApi: RendererAPI = { ...base, renderer: rendererRegistry };
 
+  // ---- 插件：在 init 之前加载，确保全流程 hook 生效（含 beforeInit/afterInit） ----
+  const pluginsDir = path.join(cwd, siteConfig.pluginsDir ?? "plugins");
+  await loadPlugins(pluginsDir, {
+    generator: generatorApi,
+    hook: hookApi,
+    renderer: rendererApi,
+  });
   buildLog("Loaded Plugins");
-  api.site = site;
+
+  // ---- init ----
+  await hooks.beforeInit.call(siteConfig);
+  const site = new SiteImpl();
+  await hooks.afterInit.call(site);
+  generatorApi.site = site;
+  hookApi.site = site;
+  rendererApi.site = site;
 
   const contentRoot = path.join(cwd, siteConfig.content?.rootDir ?? "content");
   const assetsDir = siteConfig.assetsDir ?? "assets";
@@ -132,13 +149,12 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- parse ----
   await hooks.beforeParse.call(files);
-  const parseCtx: ParseContext = { config: siteConfig, contentRoot, projectRoot: cwd };
   const mdFiles = files.filter((f) => !f.isAsset);
   const pageById = new Map<string, Page>();
   for (const f of mdFiles) {
     // NOTE
     // 似乎是在替换 Windows 风格的路径？但是 Linux 上似乎允许存在 `\` 但是应该也没有人会用这样奇怪的路径名吧？
-    const rel = path.relative(contentRoot, f.absolutePath).replace(/\\/g, "/");
+    const rel = toPosixPath(path.relative(contentRoot, f.absolutePath));
     const collectionName = rel.split("/")[0]!;
     let collectionConfig = siteConfig.collections.find(
       (c) => c.sourceDir === collectionName,
@@ -154,7 +170,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
         throw new Error(`目录 "${collectionName}" 未配置集合（config.collections 中缺少 sourceDir: "${collectionName}"）`);
       }
     }
-    const page = parseFile(f.absolutePath, rel, collectionConfig.name, collectionConfig, parseCtx);
+    const page = parseFile(f.absolutePath, rel, collectionConfig.name, collectionConfig);
     pageById.set(page.id, page);
   }
   // NOTE
@@ -199,7 +215,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- process ----
   const scanned = scanAssets({ contentRoot, assetsDirAbs, pages: allPages });
-  site["_assets"] = scanned.assets as Asset[];
+  site.setAssets(scanned.assets as Asset[]);
   // 主题资源
   const loadedTheme = await loadTheme(siteConfig.theme, cwd, helpers);
   // 主题资源输出前缀（themeAsset helper 与主题资源写入共用）
@@ -223,17 +239,17 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
         // less → css 编译
         const css = await compileLess(fs.readFileSync(abs, "utf8"), abs);
         const cssRel = rel.replace(/\.less$/i, ".css");
-        site["_assets"].push({
+        site.assets.push({
           sourcePath: abs,
-          url: prefix + "/" + cssRel.replace(/\\/g, "/"),
+          url: prefix + "/" + toPosixPath(cssRel),
           buffer: Buffer.from(css),
           type: "css",
           belongsTo: "global",
         });
       } else {
-        site["_assets"].push({
+        site.assets.push({
           sourcePath: abs,
-          url: prefix + "/" + rel.replace(/\\/g, "/"),
+          url: prefix + "/" + toPosixPath(rel),
           buffer: fs.readFileSync(abs),
           type: assetType(rel),
           belongsTo: "global",
@@ -243,9 +259,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   }
   const assets = site.assets;
   await hooks.beforeProcess.call(assets);
-  for (const handler of processHandlers) {
-    await handler(assets);
-  }
   await hooks.afterProcess.call(assets);
   if (scanned.stray.length > 0) {
     console.warn(
@@ -266,18 +279,15 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     await hooks.beforeRender.call(page);
     // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
     resolveCover(page, resolveCtx);
-    // NOTE
-    // 考虑可配置其他 Markdown render 后端
-    const mdResult = await renderMarkdown(page.rawContent, page, {
+    // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
+    const renderer = rendererRegistry.get();
+    if (!renderer) throw new Error("未注册任何 renderer");
+    const mdResult = await renderer(page.rawContent, page, {
       config: siteConfig,
       resolve: resolveCtx,
     });
     page.content = mdResult.html;
     page.metadata.toc = mdResult.toc;
-    // NOTE
-    // 需要明确一下 before/after render 是对 Markdown 文件的渲染阶段
-    // 对于 HTML 的渲染阶段应该没有需要介入的场景吧？
-    // 在 HTML 渲染后如果需要进行压缩，应该使用 write 阶段的 hooks
     await hooks.afterRender.call(page);
     const html = renderPage(loadedTheme, {
       site,
@@ -318,29 +328,52 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
 // ---------- 内部工具 ----------
 
-async function loadPlugins(config: SiteConfig, cwd: string, api: PluginAPI) {
+/** 插件类型与文件名前缀的映射 */
+type PluginKind = "generator" | "hook" | "renderer";
+const PLUGIN_PREFIX_RE = /^(generator|hook|renderer)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
+
+/**
+ * 从插件目录自动发现并加载插件：
+ * - generator-*.ts / hook-*.ts / renderer-*.ts 按前缀注入对应类型 api
+ * - 无前缀文件（如共享工具）忽略并警告
+ */
+async function loadPlugins(
+  pluginsDir: string,
+  apis: Record<PluginKind, GeneratorAPI | HookAPI | RendererAPI>,
+): Promise<void> {
+  if (!fs.existsSync(pluginsDir)) {
+    console.warn(
+      `[warn] 插件目录不存在，跳过插件加载：${pluginsDir}`,
+    );
+    return;
+  }
   const jiti = createJiti(import.meta.url, { interopDefault: true });
-  for (const entry of config.plugins ?? []) {
-    const resolve = typeof entry === "string" ? entry : entry.resolve;
-    const options = typeof entry === "string" ? undefined : entry.options;
+  const files = fs
+    .readdirSync(pluginsDir, { withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => e.name);
+  for (const name of files) {
+    const m = PLUGIN_PREFIX_RE.exec(name);
+    if (!m) {
+      // 无前缀文件：非插件（工具/共享模块），忽略并警告
+      console.warn(`[warn] 插件目录中 "${name}" 无类型前缀，已忽略（需 generator- / hook- / renderer- 前缀）`);
+      continue;
+    }
+    const kind = m[1] as PluginKind;
+    const file = path.join(pluginsDir, name);
     let mod: unknown;
-    if (resolve.startsWith(".") || path.isAbsolute(resolve)) {
-      const abs = path.isAbsolute(resolve)
-        ? resolve
-        : path.resolve(cwd, resolve);
-      mod = await jiti.import(abs);
-    } else {
-      mod = await import(resolve);
+    try {
+      mod = await jiti.import(file);
+    } catch (err) {
+      console.warn(`[warn] 插件加载失败，已跳过：${name}\n  ${(err as Error).message}`);
+      continue;
     }
-    const candidate = (mod as { default?: unknown }).default ?? mod;
-    const plugin: Plugin | undefined =
-      typeof candidate === "function"
-        ? (candidate as (opts?: unknown) => Plugin)(options)
-        : (candidate as Plugin | undefined);
-    if (!plugin || typeof plugin.apply !== "function") {
-      throw new Error(`插件 "${resolve}" 未导出合法 Plugin（需含 apply 方法）`);
+    const fn = (mod as { default?: unknown }).default ?? mod;
+    if (typeof fn !== "function") {
+      console.warn(`[warn] 插件 "${name}" 未导出函数，已跳过`);
+      continue;
     }
-    await plugin.apply(api);
+    await fn(apis[kind]);
   }
 }
 
@@ -357,7 +390,7 @@ function scanContent(contentRoot: string, projectRoot: string): FileEntry[] {
       } else if (entry.isFile()) {
         const isMd = /\.md$/i.test(entry.name);
         files.push({
-          path: path.relative(projectRoot, abs).replace(/\\/g, "/"),
+          path: toPosixPath(path.relative(projectRoot, abs)),
           absolutePath: abs,
           isAsset: !isMd,
         });

@@ -30,14 +30,6 @@ export interface CliConfig {
   newPostDraft?: boolean;
 }
 
-/** 插件配置项：npm 包名 / 本地路径 / 带选项的对象 */
-export type PluginEntry =
-  | string
-  | {
-      resolve: string;
-      options?: Record<string, unknown>;
-    };
-
 /**
  * SiteConfig —— 站点配置（blog.config.ts 的 defineConfig 参数）
  */
@@ -95,8 +87,8 @@ export interface SiteConfig {
   /** 订阅源配置 */
   feed?: { enable?: boolean; path?: string };
 
-  /** 插件列表 */
-  plugins?: PluginEntry[];
+  /** 插件目录（相对项目根，默认 "plugins"），自动按前缀发现 generator-/hook-/renderer- 插件 */
+  pluginsDir?: string;
 }
 
 /**
@@ -105,7 +97,3 @@ export interface SiteConfig {
 export type DefineConfigInput =
   | SiteConfig
   | ((defaults: Partial<SiteConfig>) => SiteConfig);
-
-export function defineConfig(config: DefineConfigInput): SiteConfig {
-  return typeof config === "function" ? config({}) : config;
-}

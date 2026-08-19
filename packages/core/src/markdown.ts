@@ -12,8 +12,15 @@ import { visit } from "unist-util-visit";
 import { toString } from "hast-util-to-string";
 import type { Root } from "hast";
 import { createHighlighterCoreSync, createJavaScriptRegexEngine, type HighlighterGeneric } from "shiki";
-import type { Page, SiteConfig } from "./types";
+import type { Page } from "./types";
 import { resolveAssetRef, type ResolveContext } from "./assets.js";
+import type {
+  MarkdownResult,
+  RenderContext,
+  TocEntry,
+} from "./types/index.js";
+
+export type { MarkdownResult, RenderContext, TocEntry };
 
 /**
  * Markdown 渲染管线：unified / remark / rehype，GFM 方言
@@ -24,23 +31,6 @@ import { resolveAssetRef, type ResolveContext } from "./assets.js";
  *
  * GFM 支持（remark-gfm）：表格、任务列表、删除线、自动链接（URL/邮箱）、脚注。
  */
-
-export interface MarkdownContext {
-  config: SiteConfig;
-  resolve: ResolveContext;
-}
-
-/** 目录条目 */
-export interface TocEntry {
-  level: number; // 1-3
-  id: string;
-  text: string;
-}
-
-export interface MarkdownResult {
-  html: string;
-  toc: TocEntry[];
-}
 
 // ---------- shiki 高亮器（模块级单例，dev 重建复用） ----------
 /** 常用语言集合（动态导入，仅注册需要的语言） */
@@ -99,7 +89,6 @@ const COMMON_LANGS = (() => {
     load(import("@shikijs/langs/json5")),
     load(import("@shikijs/langs/jsonc")),
     load(import("@shikijs/langs/jsx")),
-    load(import("@shikijs/langs/julia")),
     load(import("@shikijs/langs/kotlin")),
     load(import("@shikijs/langs/less")),
     load(import("@shikijs/langs/liquid")),
@@ -248,7 +237,7 @@ function rehypeResolveAssets(page: Page, resolve: ResolveContext): () => (tree: 
 export async function renderMarkdown(
   rawContent: string,
   page: Page,
-  ctx: MarkdownContext,
+  ctx: RenderContext,
 ): Promise<MarkdownResult> {
   const { config } = ctx;
   const md = config.markdown ?? {};

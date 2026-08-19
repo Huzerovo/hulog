@@ -21,6 +21,7 @@ export { loadTheme, renderPage, resolveThemeDir } from "./theme.js";
 export { renderMarkdown } from "./markdown.js";
 export { AsyncHookImpl } from "./hook.js";
 export { SiteImpl, CollectionImpl } from "./site.js";
+export { RendererRegistryImpl } from "./renderer.js";
 export {
   scanAssets,
   resolveAssetRef,

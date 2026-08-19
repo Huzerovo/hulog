@@ -1,17 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import type { CollectionConfig, Page, SiteConfig } from "./types/index.js";
+import type { CollectionConfig, Page } from "./types/index.js";
 import { parseSlugFromFilename, resolveUrl } from "./route.js";
 import { parseCategories } from "./category.js";
-
-export interface ParseContext {
-  config: SiteConfig;
-  /** content 根目录绝对路径 */
-  contentRoot: string;
-  /** 项目根目录 */
-  projectRoot: string;
-}
+import { toPosixPath } from "./path.js";
 
 /** front-matter 中的日期值 → Date（支持 Date、字符串、时间戳） */
 function toDate(value: unknown): Date | undefined {
@@ -57,7 +50,6 @@ export function parseFile(
   relPath: string,
   collectionName: string,
   collectionConfig: CollectionConfig,
-  ctx: ParseContext,
 ): Page {
   const raw = fs.readFileSync(absPath, "utf8");
   const { data, content } = matter(raw);
@@ -115,7 +107,7 @@ export function parseFile(
     if (!RESERVED_KEYS.has(k)) dataRest[k] = v;
   }
 
-  const id = relPath.replace(/\\/g, "/");
+  const id = toPosixPath(relPath);
   const page: Page = {
     id,
     collection: collectionName,
@@ -143,8 +135,5 @@ export function parseFile(
     metadata: {},
   };
 
-  // 源文件绝对路径
-  page.sourcePath = absPath;
-  void ctx;
   return page;
 }

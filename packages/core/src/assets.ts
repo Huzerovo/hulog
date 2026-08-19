@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Asset, Page } from "./types/index.js";
+import { toPosixPath } from "./path.js";
 
 /**
  * 资源收集与引用解析
@@ -73,7 +74,7 @@ export function resolveAssetRef(
   // 再全局 assetsDir
   const absGlobal = path.resolve(ctx.assetsDirAbs, ref);
   if (fs.existsSync(absGlobal) && fs.statSync(absGlobal).isFile()) {
-    return "/assets/" + ref.replace(/\\/g, "/");
+    return "/assets/" + toPosixPath(ref);
   }
 
   return null;
@@ -120,7 +121,7 @@ export function scanAssets(opts: {
         let owned = false;
         for (const [postDir, info] of postDirs) {
           if (resolvedAbs.startsWith(postDir + path.sep)) {
-            const relInDir = path.relative(info.dir, abs).replace(/\\/g, "/");
+            const relInDir = toPosixPath(path.relative(info.dir, abs));
             assets.push({
               sourcePath: abs,
               url: info.page.url + relInDir,
@@ -158,7 +159,7 @@ export function scanDirectoryAssets(dir: string, urlPrefix: string): Asset[] {
       } else if (entry.isFile()) {
         out.push({
           sourcePath: abs,
-          url: urlPrefix + "/" + rel.replace(/\\/g, "/"),
+          url: urlPrefix + "/" + toPosixPath(rel),
           buffer: fs.readFileSync(abs),
           type: assetType(entry.name),
           belongsTo: "global",
