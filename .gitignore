@@ -5,6 +5,7 @@ dist/
 
 # 示例站点（本地开发用，不入库）
 examples/
+example/
 
 # 内部设计文档（不随发布版本分发）
 design-doc.md
