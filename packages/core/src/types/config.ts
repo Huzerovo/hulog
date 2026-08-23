@@ -31,7 +31,7 @@ export interface CliConfig {
 }
 
 /**
- * SiteConfig —— 站点配置（blog.config.ts 的 defineConfig 参数）
+ * SiteConfig —— 站点配置
  */
 export interface SiteConfig {
   /** 站点标题 */
@@ -85,15 +85,8 @@ export interface SiteConfig {
   defaultCategory?: string;
 
   /** 订阅源配置 */
-  feed?: { enable?: boolean; path?: string };
+  feed?: { enable?: boolean; path?: string; };
 
   /** 插件目录（相对项目根，默认 "plugins"），自动按前缀发现 generator-/hook-/renderer- 插件 */
   pluginsDir?: string;
 }
-
-/**
- * defineConfig —— 配置入口（支持对象或函数形式，函数可基于默认值定制）
- */
-export type DefineConfigInput =
-  | SiteConfig
-  | ((defaults: Partial<SiteConfig>) => SiteConfig);

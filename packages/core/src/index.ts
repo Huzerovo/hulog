@@ -16,7 +16,7 @@ export {
   categoryPathToUrl,
   buildCategoryTree,
 } from "./category.js";
-export { loadSiteConfig, defineConfig } from "./config.js";
+export { loadSiteConfig } from "./config.js";
 export { loadTheme, renderPage, resolveThemeDir } from "./theme.js";
 export { renderMarkdown } from "./markdown.js";
 export { AsyncHookImpl } from "./hook.js";

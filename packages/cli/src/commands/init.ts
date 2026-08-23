@@ -2,13 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { BIN_NAME } from "@hulog/core";
 
-const CONFIG_TEMPLATE = `import { defineConfig } from "@hulog/core";
-
-export default defineConfig({
+const CONFIG_TEMPLATE = `
+export default {
   siteTitle: "My Blog",
   description: "A static blog",
   url: "https://example.com",
-  theme: "my-theme",
+  theme: "default",
   content: {
     rootDir: "content",
   },
@@ -40,7 +39,7 @@ export default defineConfig({
   cli: {
     newPostDraft: true,
   },
-});
+};
 `;
 
 const THEME_CONFIG_TEMPLATE = `/**

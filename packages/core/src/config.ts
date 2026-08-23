@@ -3,8 +3,6 @@ import { createJiti } from "jiti";
 import type { SiteConfig } from "./types/index.js";
 import { BIN_NAME } from "./constants.js";
 
-export { defineConfig } from "./config/define.js";
-
 const MODULE_NAME = "blog";
 
 /** 配置文件搜索顺序 */
@@ -51,13 +49,26 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
     },
   });
 
+  const defaults: Partial<SiteConfig> = {
+    assetsDir: "assets",
+    content: { rootDir: "content" },
+    markdown: { highlight: true, katex: true, clientHighlight: false },
+    server: { port: 3000, hot: true },
+    cli: { newPostDraft: true },
+    pluginsDir: "plugins",
+    language: "zh-CN",
+    perPage: 10,
+    archiveDir: "archive",
+    paginationDir: "page",
+  };
+
   const result = await explorer.search(cwd);
   if (!result || result.isEmpty) {
     throw new Error(
       `未找到配置文件（${SEARCH_PLACES.join(" / ")}），请先运行 ${BIN_NAME} init`,
     );
   }
-  return result.config as SiteConfig;
+  return { ...defaults, ...result.config } as SiteConfig;
 }
 
 /**
