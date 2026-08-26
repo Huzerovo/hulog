@@ -25,16 +25,12 @@ import {
 import { toPosixPath } from "./path.js";
 import { registerCoreHelpers } from "./helpers.js";
 import { RendererRegistryImpl } from "./renderer.js";
-import type {
-  Asset,
-  FileEntry,
-  Hooks,
-  Page,
-  PluginAPI,
-  Renderer,
-  Site,
-  SiteConfig,
-} from "./types/index.js";
+import type { Asset } from "./types/asset.js";
+import type { FileEntry, Hooks, PluginAPI } from "./types/plugins.js";
+import type { Page } from "./types/page.js";
+import type { Site } from "./types/site.js";
+import type { Renderer } from "./types/renderer.js";
+import type { SiteConfig } from "./types/config.js";
 import { loadPlugins } from './plugins.js';
 import seqRead from "./sequence/read.js";
 
@@ -141,7 +137,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // 主题配置合并：主题默认 < 站点 theme.config.ts < blog.config.ts 内联 themeConfig
   const themeConfig = await loadThemeConfig(cwd);
   const mergedThemeConfig: Record<string, unknown> = {
-    ...(loadedTheme.theme.defaultConfig ?? {}),
+    ...(loadedTheme.theme.config ?? {}),
     ...(themeConfig ?? {}),
     ...(siteConfig.themeConfig ?? {}),
   };

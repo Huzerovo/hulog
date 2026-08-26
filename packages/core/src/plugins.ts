@@ -9,7 +9,7 @@ import { createJiti } from "jiti";
 import fs from "node:fs";
 import path from "node:path";
 
-import { PluginAPI } from "./types/plugins.js";
+import type { PluginAPI } from "./types/plugins.js";
 
 /** 插件类型与文件名前缀的映射（前缀用于校验与分类，api 统一传入） */
 const PLUGIN_PREFIX_RE = /^(generator|hook|renderer)-(.+)\.(ts|tsx|js|mjs|cjs)$/;

@@ -36,7 +36,7 @@ export interface Theme {
   name: string;
 
   /** 主题自带默认配置（站点 theme.config.ts 覆盖之，合并后注入 config.themeConfig） */
-  defaultConfig?: Record<string, unknown>;
+  config?: Record<string, unknown>;
 
   /** 布局映射：page.layout → 组件；fallback 链为 default → page */
   layouts: Record<string, LayoutComponent>;

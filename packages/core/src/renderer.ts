@@ -1,4 +1,4 @@
-import type { Renderer, RendererRegistry } from "./types/index.js";
+import type { Renderer, RendererRegistry } from "./types/renderer.js";
 
 /**
  * 渲染器注册表实现。

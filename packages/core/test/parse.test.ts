@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { parseFile } from "../src/sequence/parse.js";
-import type { CollectionConfig } from "../src/types/index.js";
+import type { CollectionConfig } from "../src/types/collection.js";
 
 const tmpDirs: string[] = [];
 function tmpRoot(): string {

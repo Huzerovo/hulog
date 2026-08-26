@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Asset, Page } from "./types/index.js";
+import type { Asset } from "./types/asset.js";
+import type { Page } from "./types/page.js";
 import { toPosixPath } from "./path.js";
 
 /**

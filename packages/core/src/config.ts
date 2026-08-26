@@ -1,6 +1,6 @@
 import { cosmiconfig } from "cosmiconfig";
 import { createJiti } from "jiti";
-import type { SiteConfig } from "./types/index.js";
+import type { SiteConfig } from "./types/config.js";
 
 const MODULE_NAME = "blog";
 

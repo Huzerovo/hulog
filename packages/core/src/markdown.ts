@@ -12,13 +12,13 @@ import { visit } from "unist-util-visit";
 import { toString } from "hast-util-to-string";
 import type { Root } from "hast";
 import { createHighlighterCoreSync, createJavaScriptRegexEngine, type HighlighterGeneric } from "shiki";
-import type { Page } from "./types";
+import type { Page } from "./types/page.js";
 import { resolveAssetRef, type ResolveContext } from "./assets.js";
 import type {
   MarkdownResult,
   RenderContext,
   TocEntry,
-} from "./types/index.js";
+} from "./types/renderer.js";
 
 export type { MarkdownResult, RenderContext, TocEntry };
 

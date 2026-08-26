@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { FileEntry } from "../types";
+import type { FileEntry } from "../types/plugins.js";
 import path from "node:path";
 import { toPosixPath } from "../path.js";
 

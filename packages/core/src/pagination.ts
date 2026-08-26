@@ -1,4 +1,4 @@
-import type { Page } from "./types/index.js";
+import type { Page } from "./types/page.js";
 import type { PaginateOptions } from "./types/pagination.js";
 
 /**

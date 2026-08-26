@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import type { Collection, CollectionConfig, FileEntry, Page, PagesIndex, SiteConfig } from "../types/index.js";
+import type { Collection, CollectionConfig } from "../types/collection.js";
+import type { FileEntry } from "../types/plugins.js";
+import type { Page, PagesIndex } from "../types/page.js";
+import type { SiteConfig } from "../types/config.js";
 import { parseSlugFromFilename, resolveUrl } from "../route.js";
 import { parseCategories } from "../category.js";
 import { toPosixPath } from "../path.js";

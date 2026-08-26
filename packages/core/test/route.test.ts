@@ -7,7 +7,7 @@ import {
   resolveUrl,
   siteUrl,
 } from "../src/route.js";
-import type { SiteConfig } from "../src/types/index.js";
+import type { SiteConfig } from "../src/types/config.js";
 
 const config = (url: string): SiteConfig => ({
   siteTitle: "t",

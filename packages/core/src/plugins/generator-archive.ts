@@ -1,4 +1,6 @@
-import type { Page, PaginateOptions, GeneratorAPI } from "@hulog/core";
+import type { Page } from "../types/page.js";
+import type { PaginateOptions } from "../types/pagination.js";
+import type { GeneratorAPI } from "../types/plugins.js";
 
 /**
  * 归档生成器（参考 huzerovo scripts/generator/archive_page.js）：

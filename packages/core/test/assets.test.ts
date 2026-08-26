@@ -9,7 +9,7 @@ import {
   scanDirectoryAssets,
   type ResolveContext,
 } from "../src/assets.js";
-import type { Page } from "../src/types/index.js";
+import type { Page } from "../src/types/page.js";
 
 const tmpDirs: string[] = [];
 function tmpRoot(): string {

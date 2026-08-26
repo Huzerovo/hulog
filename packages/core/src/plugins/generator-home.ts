@@ -1,4 +1,6 @@
-import type { Page, PaginateOptions, GeneratorAPI } from "@hulog/core";
+import type { Page } from "../types/page.js";
+import type { PaginateOptions } from "../types/pagination.js";
+import type { GeneratorAPI } from "../types/plugins.js";
 
 /**
  * 首页生成器：posts 集合按 perPage 分页（layout: index）。

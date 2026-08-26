@@ -1,4 +1,4 @@
-import type { AsyncHook } from "./types/index.js";
+import type { AsyncHook } from "./types/plugins.js";
 
 /**
  * tapable 风格异步钩子：按注册顺序依次执行（串行 await）。

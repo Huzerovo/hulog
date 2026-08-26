@@ -1,9 +1,6 @@
-import type {
-  CategoryPath,
-  Page,
-  PaginateOptions,
-  GeneratorAPI,
-} from "@hulog/core";
+import type { CategoryPath, Page } from "../types/page.js";
+import type { PaginateOptions } from "../types/pagination.js";
+import type { GeneratorAPI } from "../types/plugins.js";
 
 /**
  * 分类/标签页生成器：

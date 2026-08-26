@@ -1,4 +1,4 @@
-import type { CategoryNode, CategoryPath } from "./types/index.js";
+import type { CategoryNode, CategoryPath } from "./types/page.js";
 
 /**
  * 分类工具：front-matter categories 解析与层级处理。

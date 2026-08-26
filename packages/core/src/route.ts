@@ -1,5 +1,6 @@
 import path from "node:path";
-import type { Page, SiteConfig } from "./types/index.js";
+import type { Page } from "./types/page.js";
+import type { SiteConfig } from "./types/config.js";
 
 /**
  * 路由与 URL 生成
