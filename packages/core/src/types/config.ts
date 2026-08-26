@@ -25,11 +25,6 @@ export interface ServerConfig {
   hot?: boolean;
 }
 
-export interface CliConfig {
-  /** BIN_NAME new 默认写入 content/drafts/ 草稿区，默认 true；false 时直接写入目标集合 */
-  newPostDraft?: boolean;
-}
-
 /**
  * SiteConfig —— 站点配置
  */
@@ -69,8 +64,6 @@ export interface SiteConfig {
   markdown?: MarkdownConfig;
 
   server?: ServerConfig;
-
-  cli?: CliConfig;
 
   /** 列表每页文章数（分页插件使用），默认 10 */
   perPage?: number;

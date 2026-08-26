@@ -1,3 +1,14 @@
+// TODO
+// 检查 export 的必要性，将不需要 export 的剔除
+// 需要 export 的有：
+// 1. plugins 相关：
+//   - helper 提供访问 posts 以及 page 相关资源的能力
+//   - generator 提供虚拟页面生成的能力
+//   - hook 修改更底层数据的能力
+//   - render 提供修改 page 渲染结果的能力
+// 2. theme 相关
+// 3. config 相关，这个似乎不是很有必要？
+// 5. 其他，待分析
 /**
  * @hulog/core —— 静态博客生成器核心
  *
@@ -8,8 +19,7 @@
  * ```
  */
 export * from "./types/index.js";
-export { BIN_NAME } from "./constants.js";
-export { build, createHooks, type BuildOptions, type BuildResult } from "./build.js";
+export { build, type BuildOptions, type BuildResult } from "./build.js";
 export {
   parseCategories,
   categoryPathToString,

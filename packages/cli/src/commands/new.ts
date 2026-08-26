@@ -4,6 +4,7 @@ import { loadSiteConfig } from "@hulog/core";
 
 export interface NewOptions {
   title: string;
+  draft?: boolean;
   collection?: string;
 }
 
@@ -21,7 +22,7 @@ export function slugify(title: string): string {
 export async function newCmd(opts: NewOptions) {
   const cwd = process.cwd();
   const config = await loadSiteConfig(cwd);
-  const draftByDefault = config.cli?.newPostDraft !== false;
+  const draftByDefault = opts.draft !== false;
   const contentRoot = path.join(cwd, config.content?.rootDir ?? "content");
 
   // 目标集合与目录

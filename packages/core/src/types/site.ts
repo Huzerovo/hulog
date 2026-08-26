@@ -1,6 +1,7 @@
 import type { Collection } from "./collection.js";
 import type { Page } from "./page.js";
 import type { Asset } from "./asset.js";
+import { SiteConfig } from "./config.js";
 
 /**
  * Site —— 全局站点对象
@@ -24,4 +25,6 @@ export interface Site {
 
   /** 按源目录前缀查询资源，如 getAssets("content/photos/album1")（相册插件等场景） */
   getAssets(dir: string): Asset[];
+
+  get config(): SiteConfig;
 }

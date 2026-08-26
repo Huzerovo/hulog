@@ -8,6 +8,9 @@ export interface CollectionConfig {
   /** 集合名称 */
   name: string;
 
+  /** 是否为草稿 */
+  isDrafts?: boolean;
+
   /** 相对 content/ 的路径，如 "posts" */
   sourceDir: string;
 

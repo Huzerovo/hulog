@@ -2,6 +2,8 @@ import { build } from "@hulog/core";
 
 export async function buildCmd() {
   const start = Date.now();
+  // FIXME
+  // 这里应该像 dev 一样提供参数改写 cwd
   const result = await build({ cwd: process.cwd() });
   const ms = Date.now() - start;
   console.log(

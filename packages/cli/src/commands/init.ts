@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { BIN_NAME } from "@hulog/core";
 
 const CONFIG_TEMPLATE = `
 export default {
@@ -80,5 +79,5 @@ export function initCmd(dir: string) {
     "node_modules/\ndist/\n",
   );
   console.log(`✓ 站点已创建: ${target}`);
-  console.log("  下一步：将主题放入 themes/ 目录后运行 " + BIN_NAME + " dev");
+  console.log("  下一步：将主题放入 themes/ 目录后运行 " + process.title + " dev");
 }

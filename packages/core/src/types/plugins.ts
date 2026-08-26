@@ -5,6 +5,8 @@ import type { Page } from "./page.js";
 import type { Asset } from "./asset.js";
 import type { RendererRegistry } from "./renderer.js";
 
+export type PluginKind = "generator" | "hook" | "renderer";
+
 /**
  * 插件系统
  * 插件按文件前缀分为 generator / hook / renderer 三类，在可配置目录（默认 plugins/）中自动发现。

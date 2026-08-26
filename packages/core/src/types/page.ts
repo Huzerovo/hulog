@@ -88,3 +88,5 @@ export interface Page {
   /** 页面的其他元数据，由插件或核心动态添加 */
   metadata: Record<string, unknown>;
 }
+
+export type PagesIndex = Map<string, Page>;

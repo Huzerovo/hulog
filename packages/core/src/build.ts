@@ -1,11 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createJiti } from "jiti";
 import less from "less";
 import { AsyncHookImpl } from "./hook.js";
 import { loadSiteConfig, loadThemeConfig } from "./config.js";
-import { SiteImpl, CollectionImpl } from "./site.js";
-import { parseFile } from "./parse.js";
+import { SiteImpl } from "./site.js";
+import { seqParse } from "./sequence/parse.js";
 import { renderMarkdown } from "./markdown.js";
 import {
   loadTheme,
@@ -29,7 +28,6 @@ import { registerCoreHelpers } from "./helpers.js";
 import { RendererRegistryImpl } from "./renderer.js";
 import type {
   Asset,
-  Collection,
   FileEntry,
   GeneratorAPI,
   HookAPI,
@@ -40,6 +38,8 @@ import type {
   Site,
   SiteConfig,
 } from "./types/index.js";
+import { loadPlugins } from './plugins.js';
+import seqRead from "./sequence/read.js";
 
 /**
  * 构建管线：init → read → parse → filter → generate → process → render → write
@@ -57,15 +57,7 @@ export interface BuildResult {
   pages: { page: Page; html: string; }[];
 }
 
-/** 内置草稿区配置：dev 下 /draft/:slug/ 预览；不要求 date（发布时才补） */
-const DRAFTS_COLLECTION_CONFIG = {
-  name: "drafts",
-  sourceDir: "drafts",
-  routePattern: "/draft/:slug/",
-  defaultLayout: "post",
-};
-
-export function createHooks(): Hooks {
+function initHooks(): Hooks {
   return {
     beforeInit: new AsyncHookImpl(),
     afterInit: new AsyncHookImpl(),
@@ -86,12 +78,19 @@ export function createHooks(): Hooks {
   };
 }
 
+
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const buildLog = (msg: string) => console.log("  [build]: " + msg);
+  // NOTE
+  // 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写
+  // 另外 CLI build 命令暂时没有添加参数改写的功能，已做标记，记得添加
   const cwd = path.resolve(options.cwd ?? process.cwd());
+
+  // NOTE siteConfig 在 loadSiteConfig 应该被完全赋值
+  // TODO 写一个 test 用于验证
   const siteConfig = await loadSiteConfig(cwd);
 
-  const hooks = createHooks();
+  const hooks = initHooks();
 
   // 本次构建独立的 helper 注册表：插件经 api.helper.register 注册，主题经虚拟模块使用。
   // 每次 build 新建，避免 dev 热重建 / 多次构建之间累积与泄漏。
@@ -104,7 +103,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     fn: (site: Site) => Page[] | Promise<Page[]>;
   }[] = [];
   const rendererRegistry = new RendererRegistryImpl();
-  // 内置默认 renderer（markdown 渲染）；用户 renderer 经 api.renderer.register 覆盖之
+  // 内置默认 renderer（markdown 渲染）；用户 renderer 经 api.renderer.register 覆盖
   rendererRegistry.register("markdown", renderMarkdown as Renderer);
 
   // 各类型插件 api：共享 config / cwd / helper / site
@@ -121,8 +120,18 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const rendererApi: RendererAPI = { ...base, renderer: rendererRegistry };
 
   // ---- 插件：在 init 之前加载，确保全流程 hook 生效（含 beforeInit/afterInit） ----
-  const pluginsDir = path.join(cwd, siteConfig.pluginsDir ?? "plugins");
-  await loadPlugins(pluginsDir, {
+  // TODO
+  // 1. 迁移插件到 plugins.ts
+  // 2. 实现 generator, hook, helper 的统一
+  // 3. 实现多级 Plugins 的加载：内置 < 主题 < 站点，主要针对 generator，generator 用于生成虚拟页面的 Page 对象
+  const sitePluginsDir = path.join(cwd, siteConfig.pluginsDir ?? "plugins");
+  const themePluginsDir = path.join(cwd, "themes", siteConfig.theme);
+  await loadPlugins(themePluginsDir, {
+    generator: generatorApi,
+    hook: hookApi,
+    renderer: rendererApi,
+  });
+  await loadPlugins(sitePluginsDir, {
     generator: generatorApi,
     hook: hookApi,
     renderer: rendererApi,
@@ -130,9 +139,11 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Loaded Plugins");
 
   // ---- init ----
+  // NOTE 感觉 init 阶段的 hook 不是很有必要
   await hooks.beforeInit.call(siteConfig);
-  const site = new SiteImpl();
+  const site = new SiteImpl(siteConfig);
   await hooks.afterInit.call(site);
+  // NOTE helperApi 应该也实现一下？
   generatorApi.site = site;
   hookApi.site = site;
   rendererApi.site = site;
@@ -142,64 +153,54 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const assetsDirAbs = path.join(cwd, assetsDir);
 
   // ---- read ----
+  // NOTE beforeRead 阶段的 hook 好像也有点意义不明
   await hooks.beforeRead.call();
-  const files: FileEntry[] = scanContent(contentRoot, cwd);
+  const files: FileEntry[] = seqRead(contentRoot, cwd);
   await hooks.afterRead.call(files);
   buildLog("Finished read");
 
   // ---- parse ----
+  // TODO 阶段拆分
   await hooks.beforeParse.call(files);
-  const mdFiles = files.filter((f) => !f.isAsset);
-  const pageById = new Map<string, Page>();
-  for (const f of mdFiles) {
-    // NOTE
-    // 似乎是在替换 Windows 风格的路径？但是 Linux 上似乎允许存在 `\` 但是应该也没有人会用这样奇怪的路径名吧？
-    const rel = toPosixPath(path.relative(contentRoot, f.absolutePath));
-    const collectionName = rel.split("/")[0]!;
-    let collectionConfig = siteConfig.collections.find(
-      (c) => c.sourceDir === collectionName,
-    );
-    if (!collectionConfig) {
-      // 内置草稿区：强制 draft，dev 预览
-      // NOTE 考虑草稿区名称设置为可自定义
-      if (rel.startsWith("drafts/")) {
-        collectionConfig = DRAFTS_COLLECTION_CONFIG;
-      } else {
-        // NOTE
-        // 考虑到 content 下应该允许用户创建自定义的文件夹，这里改为抛出警告会不会更好一些？
-        throw new Error(`目录 "${collectionName}" 未配置集合（config.collections 中缺少 sourceDir: "${collectionName}"）`);
-      }
-    }
-    const page = parseFile(f.absolutePath, rel, collectionConfig.name, collectionConfig);
-    pageById.set(page.id, page);
-  }
-  // NOTE
-  // 这里的处理是不是比较奇怪？parse 阶段针对的是单个文件对 Page 对象的转换过程。
-  // Collection 是针对多个 Page 的，上面的处理过程是根据 Collection 处理 Page，
-  // 似乎不太对？应该单独设置一个阶段吗？
-  const collections: Collection[] = buildCollections(siteConfig, pageById);
+  const collections = seqParse(siteConfig, contentRoot, files);
+  for (const col of collections) {
+    // NOTE 添加正式发布是否允许草稿
+    if (!options.dev && col.config.isDrafts) continue;
+    site.collections.set(col.name, col);
+  };
   await hooks.afterParse.call(collections);
   buildLog("Finished parse");
-  for (const col of collections) site.collections.set(col.name, col);
+
+  // TODO 
+  // 考虑在这里添加一个 collect 阶段
+  // parse 返回 PagesIndex，这里根据 PagesIndex 生成 collections
+  // 生成 collections 之后经过 filter 阶段再写入 site
+
+
 
   // ---- filter ----
   // NOTE
-  // 这里的 filter 似乎也与预期不符合，filter 作用应该是忽略渲染某些 Page 或者处理 Assets
-  // 比如忽略压缩某些文件，跳过处理某些文章（但这个好像不是很有意义）
-  // 目前需要再考虑这个阶段存在的意义
+  // 这个阶段有点意义不明了 
+  // 是否应该将 parse 拆分成两个阶段，一个生成 Pages，一个生成 Collections
+  // 这个阶段则专注于设置 site.collections，不需要使 collection 耦合在 parse 阶段
   await hooks.beforeFilter.call(collections);
+  // TODO 添加选项允许非 dev 时构建草稿
   if (!options.dev) {
     for (const col of collections) {
-      col.pages = col.pages.filter((p) => !p.draft);
+      if (!col.config.isDrafts) {
+        col.pages = col.pages.filter((p) => !p.draft);
+      }
     }
   }
   await hooks.afterFilter.call(collections);
   buildLog("Finished filter");
 
   // ---- generate ----
-  // NOTE site.pages 实际上是 Collections 到 Pages 的一个映射关系，没有实际存储 Page，无需担心同步问题
+  // NOTE 这里的 pages 可能在上一阶段剔除了草稿
   const allPages = [...site.pages];
   await hooks.beforeGenerate.call(allPages);
+  // NOTE 
+  // generator 的实现需要再进一步设计，如将常用的 archive, category, tags 页面移到内置实现。
   for (const g of generators) {
     const virtuals = await g.fn(site);
     for (const v of virtuals) {
@@ -274,7 +275,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     postDirByPageId: scanned.postDirByPageId,
   };
   const styles = readThemeStyles(loadedTheme);
-  const results: { page: Page; html: string }[] = [];
+  const results: { page: Page; html: string; }[] = [];
   for (const page of allPages) {
     await hooks.beforeRender.call(page);
     // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
@@ -316,6 +317,10 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     writeUrl(distDir, asset.url, asset.buffer);
   }
   // public/ 直接复制
+  // NOTE
+  // 与 assets 的定位有些冲突？比如完全可以有一个 siteRoot/public/assets 文件夹，这样配置 SiteConfig.assetsDir 的含义就有歧义了：
+  // assetsDir 既可以代表 public 下的文件夹名称，也可以表示 siteRoot 下的文件夹名称
+  // 且由于这个是最后的阶段了，public 中的 assets 优先级极高，可能会破坏之前配置好的 assets URL
   const publicDir = path.join(cwd, "public");
   if (fs.existsSync(publicDir)) {
     copyDir(publicDir, distDir);
@@ -328,97 +333,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
 // ---------- 内部工具 ----------
 
-/** 插件类型与文件名前缀的映射 */
-type PluginKind = "generator" | "hook" | "renderer";
-const PLUGIN_PREFIX_RE = /^(generator|hook|renderer)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
-
-/**
- * 从插件目录自动发现并加载插件：
- * - generator-*.ts / hook-*.ts / renderer-*.ts 按前缀注入对应类型 api
- * - 无前缀文件（如共享工具）忽略并警告
- */
-async function loadPlugins(
-  pluginsDir: string,
-  apis: Record<PluginKind, GeneratorAPI | HookAPI | RendererAPI>,
-): Promise<void> {
-  if (!fs.existsSync(pluginsDir)) {
-    console.warn(
-      `[warn] 插件目录不存在，跳过插件加载：${pluginsDir}`,
-    );
-    return;
-  }
-  const jiti = createJiti(import.meta.url, { interopDefault: true });
-  const files = fs
-    .readdirSync(pluginsDir, { withFileTypes: true })
-    .filter((e) => e.isFile())
-    .map((e) => e.name);
-  for (const name of files) {
-    const m = PLUGIN_PREFIX_RE.exec(name);
-    if (!m) {
-      // 无前缀文件：非插件（工具/共享模块），忽略并警告
-      console.warn(`[warn] 插件目录中 "${name}" 无类型前缀，已忽略（需 generator- / hook- / renderer- 前缀）`);
-      continue;
-    }
-    const kind = m[1] as PluginKind;
-    const file = path.join(pluginsDir, name);
-    let mod: unknown;
-    try {
-      mod = await jiti.import(file);
-    } catch (err) {
-      console.warn(`[warn] 插件加载失败，已跳过：${name}\n  ${(err as Error).message}`);
-      continue;
-    }
-    const fn = (mod as { default?: unknown }).default ?? mod;
-    if (typeof fn !== "function") {
-      console.warn(`[warn] 插件 "${name}" 未导出函数，已跳过`);
-      continue;
-    }
-    await fn(apis[kind]);
-  }
-}
-
-function scanContent(contentRoot: string, projectRoot: string): FileEntry[] {
-  if (!fs.existsSync(contentRoot)) {
-    throw new Error(`内容目录不存在: ${contentRoot}`);
-  }
-  const files: FileEntry[] = [];
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const abs = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(abs);
-      } else if (entry.isFile()) {
-        const isMd = /\.md$/i.test(entry.name);
-        files.push({
-          path: toPosixPath(path.relative(projectRoot, abs)),
-          absolutePath: abs,
-          isAsset: !isMd,
-        });
-      }
-    }
-  };
-  walk(contentRoot);
-  return files;
-}
-
-function buildCollections(
-  config: SiteConfig,
-  pageById: Map<string, Page>,
-): Collection[] {
-  const cols = config.collections.map((cfg) => {
-    const pages = [...pageById.values()].filter(
-      (p) => p.collection === cfg.name,
-    );
-    return new CollectionImpl(cfg.name, cfg, pages);
-  });
-  // 内置草稿区集合（production 下被 filter 阶段过滤）
-  // NOTE 考虑将草稿区集合名设置为可由配置定义
-  const draftPages = [...pageById.values()].filter((p) => p.collection === "drafts");
-  if (draftPages.length > 0) {
-    cols.push(new CollectionImpl("drafts", DRAFTS_COLLECTION_CONFIG, draftPages));
-  }
-  return cols;
-}
 
 function checkUrlConflicts(pages: Page[]) {
   const seen = new Map<string, string>();

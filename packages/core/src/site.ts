@@ -4,6 +4,7 @@ import type {
   CollectionConfig,
   Page,
   Site,
+  SiteConfig,
 } from "./types/index.js";
 
 /**
@@ -47,6 +48,11 @@ export class CollectionImpl implements Collection {
 export class SiteImpl implements Site {
   collections: Map<string, Collection> = new Map();
   private _assets: Asset[] = [];
+  private _config: SiteConfig | undefined = void 0;
+
+  constructor(config: SiteConfig) {
+    this._config = config;
+  }
 
   getCollection(name: string): Collection {
     const col = this.collections.get(name);
@@ -64,6 +70,10 @@ export class SiteImpl implements Site {
 
   get assets(): Asset[] {
     return this._assets;
+  }
+
+  get config(): SiteConfig {
+    return this._config!;
   }
 
   /** 由 build 阶段设置全部资源（专属 + 全局） */

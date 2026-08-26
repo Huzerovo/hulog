@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { BIN_NAME } from "@hulog/core";
 import { initCmd } from "./commands/init.js";
 import { buildCmd } from "./commands/build.js";
 import { cleanCmd } from "./commands/clean.js";
@@ -11,7 +10,7 @@ import { devCmd } from "./commands/dev.js";
 const program = new Command();
 
 program
-  .name(BIN_NAME)
+  .name(process.title)
   .description("静态博客生成器（Hexo 内容模型 + TSX 主题）")
   .version("0.1.0");
 
@@ -43,7 +42,7 @@ program
   .description("创建新文章（默认写入草稿区）")
   .argument("<title>", "文章标题")
   .option("-c, --collection <name>", "目标集合")
-  .action((title, opts) => newCmd({ title, collection: opts.collection }));
+  .action((title, opts) => newCmd({ title, draft: opts.draft, collection: opts.collection }));
 
 program
   .command("publish")
