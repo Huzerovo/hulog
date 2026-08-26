@@ -5,4 +5,5 @@ export * from "./site.js";
 export * from "./config.js";
 export * from "./plugins.js";
 export * from "./renderer.js";
+export * from "./pagination.js";
 export * from "./theme.js";

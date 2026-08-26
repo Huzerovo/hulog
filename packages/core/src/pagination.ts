@@ -1,34 +1,11 @@
-// FIXME
-// 这个应该注册成 helper
-import type { Page } from "@hulog/core";
+import type { Page } from "./types/index.js";
+import type { PaginateOptions } from "./types/pagination.js";
 
 /**
  * 分页工具（design-doc §4 generate：虚拟页面分页）。
- * URL 规则：第 1 页 = base，第 N 页 = base + paginationDir + "/N/"（默认站点级 /page/N/）。
+ * pageUrl / paginate / pinSort 以核心 helper 形式注册（见 helpers.ts），
+ * 插件与主题经 api.plugins.helper.get(...) 使用。
  */
-
-export interface PaginationData {
-  /** 分页基础路径（如 "/" 或 "/categories/foo/"） */
-  base: string;
-  /** 分页目录名（config.paginationDir，默认 "page"） */
-  format: string;
-  current: number;
-  total: number;
-  prev: number; // 0 = 无上一页
-  prevLink: string;
-  next: number; // 0 = 无下一页
-  nextLink: string;
-}
-
-export interface PaginateOptions {
-  base: string;
-  perPage: number;
-  layout: string;
-  /** 页码 → 页面数据（posts 切片 + pagination） */
-  makePage: (data: { posts: Page[]; pagination: PaginationData }) => Page;
-  /** 分页目录名，默认 "page" */
-  format?: string;
-}
 
 /** 计算分页 URL：第 1 页返回 base，其余 base + format + N + "/" */
 export function pageUrl(base: string, format: string, n: number): string {
@@ -46,7 +23,7 @@ export function paginate(posts: Page[], opts: PaginateOptions): Page[] {
   for (let i = 0; i < total; i++) {
     const current = i + 1;
     const slice = posts.slice(i * perPage, (i + 1) * perPage);
-    const pagination: PaginationData = {
+    const pagination = {
       base,
       format,
       current,

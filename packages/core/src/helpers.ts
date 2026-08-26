@@ -4,19 +4,25 @@ import {
   categoryPathToString,
   parseCategories,
 } from "./category.js";
+import { pageUrl, paginate, pinSort } from "./pagination.js";
 import type { HelperRegistry } from "./runtime.js";
 
 /**
  * 核心内置 helper 注册（每次构建独立注册表）。
- * 主题通过 `import { assetUrl } from "hulog:helpers"` 使用。
+ * 插件与主题经 api.plugins.helper.get(...) 使用。
  */
 
 export function registerCoreHelpers(registry: HelperRegistry): void {
-  /** 分类工具（主题经 hulog:helpers 使用） */
+  /** 分类工具 */
   registry.register("parseCategories", parseCategories);
   registry.register("categoryPathToString", categoryPathToString);
   registry.register("categoryPathToUrl", categoryPathToUrl);
   registry.register("buildCategoryTree", buildCategoryTree);
+
+  /** 分页工具（generate 阶段虚拟页面分页） */
+  registry.register("pageUrl", pageUrl);
+  registry.register("paginate", paginate);
+  registry.register("pinSort", pinSort);
 
   /** 站点 URL 辅助（部署子路径时后续可基于 config.url 扩展） */
   registry.register("urlFor", (url: string) => {

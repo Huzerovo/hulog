@@ -1,6 +1,6 @@
 /**
  * 从插件目录自动发现并加载插件：
- * - generator-*.ts / hook-*.ts / renderer-*.ts 按前缀注入对应类型 api
+ * - generator-*.ts / hook-*.ts / renderer-*.ts 按前缀注入统一 api（含 plugins 命名空间）
  * - 无前缀文件（如共享工具）忽略并警告
  */
 
@@ -9,23 +9,14 @@ import { createJiti } from "jiti";
 import fs from "node:fs";
 import path from "node:path";
 
-import { GeneratorAPI, HookAPI, PluginKind, RendererAPI } from "./types/plugins.js";
+import { PluginAPI } from "./types/plugins.js";
 
-/** 插件类型与文件名前缀的映射 */
+/** 插件类型与文件名前缀的映射（前缀用于校验与分类，api 统一传入） */
 const PLUGIN_PREFIX_RE = /^(generator|hook|renderer)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
-
-async function loadCorePlugins() {
-  // NOTE
-  // 使用 import 导入，而非 jiti
-}
-
-async function loadThemePlugins() { }
-
-async function loadSitePlugins() { }
 
 export async function loadPlugins(
   pluginsDir: string,
-  apis: Record<PluginKind, GeneratorAPI | HookAPI | RendererAPI>,
+  api: PluginAPI,
 ): Promise<void> {
   if (!fs.existsSync(pluginsDir)) {
     console.warn(
@@ -39,13 +30,14 @@ export async function loadPlugins(
     .filter((e) => e.isFile())
     .map((e) => e.name);
   for (const name of files) {
+    // 主题入口（index.*）由 loadTheme 单独加载，不作为插件扫描
+    if (/^index\.(ts|tsx|js|mjs|cjs)$/.test(name)) continue;
     const m = PLUGIN_PREFIX_RE.exec(name);
     if (!m) {
       // 无前缀文件：非插件（工具/共享模块），忽略并警告
       console.warn(`[warn] 插件目录中 "${name}" 无类型前缀，已忽略（需 generator- / hook- / renderer- 前缀）`);
       continue;
     }
-    const kind = m[1] as PluginKind;
     const file = path.join(pluginsDir, name);
     let mod: unknown;
     try {
@@ -59,6 +51,6 @@ export async function loadPlugins(
       console.warn(`[warn] 插件 "${name}" 未导出函数，已跳过`);
       continue;
     }
-    await fn(apis[kind]);
+    await fn(api);
   }
 }

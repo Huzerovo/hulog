@@ -1,5 +1,4 @@
-import type { Page, GeneratorAPI } from "@hulog/core";
-import { paginate, pageUrl } from "../pagination.js";
+import type { Page, PaginateOptions, GeneratorAPI } from "@hulog/core";
 
 /**
  * 归档生成器（参考 huzerovo scripts/generator/archive_page.js）：
@@ -7,7 +6,18 @@ import { paginate, pageUrl } from "../pagination.js";
  * - /archive/<year>/     单年归档（layout: archive）
  */
 export default function (api: GeneratorAPI) {
-  api.generator.register("archive", (site): Page[] => {
+  const helper = api.plugins.helper;
+  const paginate = helper.get("paginate") as (
+    posts: Page[],
+    opts: PaginateOptions,
+  ) => Page[];
+  const pageUrl = helper.get("pageUrl") as (
+    base: string,
+    format: string,
+    n: number,
+  ) => string;
+
+  api.plugins.generator.register("archive", (site): Page[] => {
     const posts = (site.getCollection("posts")?.getPages(true) ?? []).filter(
       (p) => p.date,
     );

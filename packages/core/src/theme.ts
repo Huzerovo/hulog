@@ -2,16 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import { build, type Plugin as EsbuildPlugin } from "esbuild";
+import { build } from "esbuild";
 import { h } from "preact";
 import { render } from "preact-render-to-string";
 import type { LayoutProps, Theme } from "./types/index.js";
-import type { HelperRegistry } from "./runtime.js";
+import type { PluginAPI } from "./types/index.js";
 
 /**
  * 主题加载与渲染
  * Node 无法直接 require .ts/.tsx，核心用 esbuild 将主题入口 bundle 为 ESM 后 import。
+ * 主题入口默认导出 `(api) => Theme`，与插件共享统一 api（可注册/使用 helper、generator 等）。
  */
 
 export interface LoadedTheme {
@@ -21,8 +21,6 @@ export interface LoadedTheme {
   /** 主题资源目录绝对路径（assetsDir 配置，可选） */
   assetsDir: string | null;
 }
-
-const RUNTIME_ABS = fileURLToPath(new URL("./runtime.js", import.meta.url));
 
 // 从 core 自身解析 preact（指向 ESM 入口），保证主题位于任意目录时都能 bundle。
 // 这些模块同时 external：与 core 进程共享同一实例（preact context 依赖单实例，
@@ -62,44 +60,13 @@ export function resolveThemeDir(themeName: string, projectRoot: string): string 
 }
 
 /**
- * esbuild 虚拟模块插件：让主题代码可 `import { helper } from "hulog:helpers"`。
- * 导出列表在 bundle 时从本次构建的 helper 注册表生成。
+ * bundle 并加载主题，返回主题模块。
+ * 主题入口默认导出 `(api) => Theme`（或直接导出 Theme 对象），api 与插件统一。
  */
-function helpersVirtualPlugin(registry: HelperRegistry): EsbuildPlugin {
-  return {
-    name: "hulog-virtual-helpers",
-    setup(build) {
-      build.onResolve({ filter: /^hulog:helpers$/ }, () => ({
-        path: "hulog:helpers",
-        namespace: "hulog",
-      }));
-      build.onLoad({ filter: /.*/, namespace: "hulog" }, () => {
-        const names = Object.keys(registry.getHelpers());
-        const exports = names
-          .map(
-            (n) =>
-              `export const ${n} = (...args) => __h().${n}(...args);`,
-          )
-          .join("\n");
-        return {
-          contents: `import { __getHelpers as __h } from ${JSON.stringify("hulog:runtime")};\n${exports}`,
-          loader: "js",
-        };
-      });
-      build.onResolve({ filter: /^hulog:runtime$/ }, () => ({
-        path: RUNTIME_ABS,
-        // external：不打包，运行时从 core 加载同一 runtime 实例（共享 helpers 注册表）
-        external: true,
-      }));
-    },
-  };
-}
-
-/** bundle 并加载主题，返回主题模块 */
 export async function loadTheme(
   themeName: string,
   projectRoot: string,
-  registry: HelperRegistry,
+  api: PluginAPI,
 ): Promise<LoadedTheme> {
   const dir = resolveThemeDir(themeName, projectRoot);
   const entry = path.join(dir, "index.ts");
@@ -136,21 +103,19 @@ export async function loadTheme(
       ".woff2": "file",
       ".ttf": "file",
     },
-    plugins: [helpersVirtualPlugin(registry)],
     alias: PREACT_EXTERNALS,
-    // runtime 与 preact 系列必须 external：与核心进程共享同一实例
-    // （runtime 共享 helpers 注册表；preact 共享 context 单实例）
-    external: [
-      "hulog:runtime",
-      RUNTIME_ABS,
-      ...Object.values(PREACT_EXTERNALS),
-    ],
+    // preact 系列必须 external：与核心进程共享同一实例（context 单实例）
+    external: [...Object.values(PREACT_EXTERNALS)],
     logLevel: "silent",
   });
 
   // 带版本 query 绕过 ESM 缓存（dev 热重载）
   const mod = await import(`${outfile}?t=${Date.now()}`);
-  const theme = (mod.default ?? mod) as Theme;
+  const candidate = (mod.default ?? mod) as unknown;
+  const theme: Theme =
+    typeof candidate === "function"
+      ? await (candidate as (api: PluginAPI) => Theme | Promise<Theme>)(api)
+      : (candidate as Theme);
   if (!theme || typeof theme.name !== "string" || !theme.layouts) {
     throw new Error(`主题入口未导出合法的 Theme 对象（需含 name 与 layouts）: ${dir}`);
   }

@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createHelperRegistry,
-  setCurrentHelpers,
-  getCurrentHelpers,
   type HelperRegistry,
 } from "../src/runtime.js";
 import { registerCoreHelpers } from "../src/helpers.js";
@@ -22,17 +20,6 @@ test("注册表相互隔离（不累积/不泄漏）", () => {
   assert.equal(a.get("x")!(), 1);
   assert.equal(b.get("x")!(), 2);
   assert.equal(b.get("y"), undefined);
-});
-
-test("setCurrentHelpers 切换当前注册表", () => {
-  const a = createHelperRegistry();
-  a.register("x", () => 1);
-  const b = createHelperRegistry();
-  b.register("x", () => 2);
-  setCurrentHelpers(a);
-  assert.equal(getCurrentHelpers().get("x")!(), 1);
-  setCurrentHelpers(b);
-  assert.equal(getCurrentHelpers().get("x")!(), 2);
 });
 
 test("核心 helpers: date 格式化", () => {
@@ -73,4 +60,17 @@ test("核心 helpers: urlFor 补前导斜杠", () => {
   const reg = registry();
   assert.equal(reg.get("urlFor")!("a/b"), "/a/b");
   assert.equal(reg.get("urlFor")!("/a/b"), "/a/b");
+});
+
+test("核心 helpers: 分页工具 pageUrl/paginate/pinSort", () => {
+  const reg = registry();
+  const pageUrl = reg.get("pageUrl")!;
+  assert.equal(pageUrl("/archive/", "page", 1), "/archive/");
+  assert.equal(pageUrl("/archive/", "page", 3), "/archive/page/3/");
+  const pinSort = reg.get("pinSort")!;
+  const a = { data: { pin: true }, id: "a" };
+  const b = { data: {}, id: "b" };
+  const c = { data: { pin: true }, id: "c" };
+  const sorted = pinSort([b, a, c]);
+  assert.deepEqual(sorted.map((p: any) => p.id), ["a", "c", "b"]);
 });

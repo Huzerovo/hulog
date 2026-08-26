@@ -20,7 +20,6 @@ import {
 } from "./assets.js";
 import {
   createHelperRegistry,
-  setCurrentHelpers,
   type HelperRegistry,
 } from "./runtime.js";
 import { toPosixPath } from "./path.js";
@@ -29,11 +28,9 @@ import { RendererRegistryImpl } from "./renderer.js";
 import type {
   Asset,
   FileEntry,
-  GeneratorAPI,
-  HookAPI,
   Hooks,
   Page,
-  RendererAPI,
+  PluginAPI,
   Renderer,
   Site,
   SiteConfig,
@@ -92,50 +89,41 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   const hooks = initHooks();
 
-  // 本次构建独立的 helper 注册表：插件经 api.helper.register 注册，主题经虚拟模块使用。
+  // 本次构建独立的 helper 注册表：插件/主题经 api.plugins.helper 注册与使用。
   // 每次 build 新建，避免 dev 热重建 / 多次构建之间累积与泄漏。
   const helpers: HelperRegistry = createHelperRegistry();
   registerCoreHelpers(helpers);
-  setCurrentHelpers(helpers);
 
   const generators: {
     name: string;
     fn: (site: Site) => Page[] | Promise<Page[]>;
   }[] = [];
   const rendererRegistry = new RendererRegistryImpl();
-  // 内置默认 renderer（markdown 渲染）；用户 renderer 经 api.renderer.register 覆盖
+  // 内置默认 renderer（markdown 渲染）；用户 renderer 经 api.plugins.renderer.register 覆盖
   rendererRegistry.register("markdown", renderMarkdown as Renderer);
 
-  // 各类型插件 api：共享 config / cwd / helper / site
-  const base = { config: siteConfig, cwd, helper: helpers };
-  const generatorApi: GeneratorAPI = {
-    ...base,
-    generator: {
-      register(name, fn) {
-        generators.push({ name, fn });
+  // 统一插件 api：四类能力收敛到 plugins 命名空间，插件与主题共享同一对象
+  const api: PluginAPI = {
+    config: siteConfig,
+    cwd,
+    plugins: {
+      generator: {
+        register(name, fn) {
+          generators.push({ name, fn });
+        },
       },
+      hook: hooks,
+      renderer: rendererRegistry,
+      helper: helpers,
     },
   };
-  const hookApi: HookAPI = { ...base, hook: hooks };
-  const rendererApi: RendererAPI = { ...base, renderer: rendererRegistry };
 
-  // ---- 插件：在 init 之前加载，确保全流程 hook 生效（含 beforeInit/afterInit） ----
-  // TODO
-  // 1. 迁移插件到 plugins.ts
-  // 2. 实现 generator, hook, helper 的统一
-  // 3. 实现多级 Plugins 的加载：内置 < 主题 < 站点，主要针对 generator，generator 用于生成虚拟页面的 Page 对象
+  // ---- 插件 + 主题：在 init 之前加载，确保全流程 hook 生效（含 beforeInit/afterInit） ----
+  // 主题入口与插件共享同一 api，可注册 generator/helper/hook。
   const sitePluginsDir = path.join(cwd, siteConfig.pluginsDir ?? "plugins");
   const themePluginsDir = path.join(cwd, "themes", siteConfig.theme);
-  await loadPlugins(themePluginsDir, {
-    generator: generatorApi,
-    hook: hookApi,
-    renderer: rendererApi,
-  });
-  await loadPlugins(sitePluginsDir, {
-    generator: generatorApi,
-    hook: hookApi,
-    renderer: rendererApi,
-  });
+  await loadPlugins(themePluginsDir, api);
+  await loadPlugins(sitePluginsDir, api);
   buildLog("Loaded Plugins");
 
   // ---- init ----
@@ -143,10 +131,21 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.beforeInit.call(siteConfig);
   const site = new SiteImpl(siteConfig);
   await hooks.afterInit.call(site);
-  // NOTE helperApi 应该也实现一下？
-  generatorApi.site = site;
-  hookApi.site = site;
-  rendererApi.site = site;
+  api.site = site;
+
+  // ---- 主题加载（提前到 generate 之前：主题可注册 generator，供 generate 阶段使用） ----
+  const loadedTheme = await loadTheme(siteConfig.theme, cwd, api);
+  // 主题资源输出前缀（themeAsset helper 与主题资源写入共用）
+  const prefix = themeAssetsPrefix(siteConfig.theme, loadedTheme.theme.assetsMode);
+  helpers.setThemeAssetsPrefix(prefix);
+  // 主题配置合并：主题默认 < 站点 theme.config.ts < blog.config.ts 内联 themeConfig
+  const themeConfig = await loadThemeConfig(cwd);
+  const mergedThemeConfig: Record<string, unknown> = {
+    ...(loadedTheme.theme.defaultConfig ?? {}),
+    ...(themeConfig ?? {}),
+    ...(siteConfig.themeConfig ?? {}),
+  };
+  siteConfig.themeConfig = mergedThemeConfig;
 
   const contentRoot = path.join(cwd, siteConfig.content?.rootDir ?? "content");
   const assetsDir = siteConfig.assetsDir ?? "assets";
@@ -217,19 +216,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // ---- process ----
   const scanned = scanAssets({ contentRoot, assetsDirAbs, pages: allPages });
   site.setAssets(scanned.assets as Asset[]);
-  // 主题资源
-  const loadedTheme = await loadTheme(siteConfig.theme, cwd, helpers);
-  // 主题资源输出前缀（themeAsset helper 与主题资源写入共用）
-  const prefix = themeAssetsPrefix(siteConfig.theme, loadedTheme.theme.assetsMode);
-  helpers.setThemeAssetsPrefix(prefix);
-  // 主题配置合并：主题默认 < 站点 theme.config.ts < blog.config.ts 内联 themeConfig
-  const themeConfig = await loadThemeConfig(cwd);
-  const mergedThemeConfig: Record<string, unknown> = {
-    ...(loadedTheme.theme.defaultConfig ?? {}),
-    ...(themeConfig ?? {}),
-    ...(siteConfig.themeConfig ?? {}),
-  };
-  siteConfig.themeConfig = mergedThemeConfig;
+  // 主题资源（主题模块已提前加载，prefix 已确定）
   if (loadedTheme.assetsDir) {
     for (const rel of walkFiles(loadedTheme.assetsDir)) {
       const abs = path.join(loadedTheme.assetsDir, rel);
@@ -295,6 +282,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
       page,
       config: siteConfig,
       styles,
+      api,
     });
     results.push({ page, html });
   }

@@ -10,7 +10,8 @@ export type PluginKind = "generator" | "hook" | "renderer";
 /**
  * 插件系统
  * 插件按文件前缀分为 generator / hook / renderer 三类，在可配置目录（默认 plugins/）中自动发现。
- * 每个插件文件默认导出 `(api) => void | Promise<void>`，api 类型由前缀决定。
+ * 每个插件文件默认导出 `(api) => void | Promise<void>`，api 为统一 PluginAPI（含 plugins 命名空间）。
+ * 主题入口同样以 `(api) => Theme` 函数形式接收统一 api。
  * 钩子采用 tapable 风格：同步/异步顺序执行。
  */
 
@@ -60,34 +61,36 @@ export interface GeneratorRegistry {
   ): void;
 }
 
-/** 模板辅助函数注册表（统一 registry 风格） */
+/** 模板辅助函数注册表：register 注册，get 读取（主题/插件经 api.plugins.helper 使用） */
 export interface HelperRegistry {
   register(name: string, fn: Function): void;
+  get(name: string): Function | undefined;
 }
 
-/** 全部类型插件共享的基础能力 */
-export interface PluginBase {
+/**
+ * 统一插件 api：config / cwd / site 为共享基础，四类能力收敛到 plugins 命名空间。
+ */
+export interface PluginAPI {
   /** 访问站点配置 */
   config: SiteConfig;
   /** 项目根目录 */
   cwd: string;
   /** 站点对象（afterInit 之后可用） */
   site?: Site;
-  /** 注册模板辅助函数（TSX 组件内可 import；核心内置 assetUrl/themeAsset/pickCover 等） */
-  helper: HelperRegistry;
+  /** 注册/使用能力命名空间 */
+  plugins: {
+    generator: GeneratorRegistry;
+    hook: Hooks;
+    renderer: RendererRegistry;
+    helper: HelperRegistry;
+  };
 }
 
 /** generator 插件 api（plugins/generator-*.ts） */
-export interface GeneratorAPI extends PluginBase {
-  generator: GeneratorRegistry;
-}
-
+export type GeneratorAPI = PluginAPI;
 /** hook 插件 api（plugins/hook-*.ts） */
-export interface HookAPI extends PluginBase {
-  hook: Hooks;
-}
-
+export type HookAPI = PluginAPI;
 /** renderer 插件 api（plugins/renderer-*.ts） */
-export interface RendererAPI extends PluginBase {
-  renderer: RendererRegistry;
-}
+export type RendererAPI = PluginAPI;
+/** 主题 api（themes/<name>/index.ts 默认导出函数入参） */
+export type ThemeAPI = PluginAPI;

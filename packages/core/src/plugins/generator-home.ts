@@ -1,12 +1,23 @@
-import type { Page, GeneratorAPI } from "@hulog/core";
-import { paginate, pageUrl, pinSort } from "../pagination.js";
+import type { Page, PaginateOptions, GeneratorAPI } from "@hulog/core";
 
 /**
  * 首页生成器：posts 集合按 perPage 分页（layout: index）。
  * 第 1 页 /，第 N 页 /page/N/（站点级分页）。
  */
 export default function (api: GeneratorAPI) {
-  api.generator.register("home", (site): Page[] => {
+  const helper = api.plugins.helper;
+  const paginate = helper.get("paginate") as (
+    posts: Page[],
+    opts: PaginateOptions,
+  ) => Page[];
+  const pageUrl = helper.get("pageUrl") as (
+    base: string,
+    format: string,
+    n: number,
+  ) => string;
+  const pinSort = helper.get("pinSort") as (posts: Page[]) => Page[];
+
+  api.plugins.generator.register("home", (site): Page[] => {
     const posts = site.getCollection("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
