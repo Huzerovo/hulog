@@ -9,10 +9,73 @@ import { createJiti } from "jiti";
 import fs from "node:fs";
 import path from "node:path";
 
-import type { PluginAPI } from "./types/plugins.js";
+import type { Site } from "./types/site.js";
+import type { SiteConfig } from "./types/config.js";
+import type { GeneratorRegistry } from "./types/generator.js";
+import type { Renderer, RendererRegistry } from "./types/renderer.js";
+import type { HelperRegistry } from "./types/helper.js";
+import type { Hooks } from "./types/hook.js";
+import { HelperRegistryImpl, registerCoreHelpers } from "./helper.js";
+import { GeneratorRegistryImpl } from "./generator.js";
+import { RendererRegistryImpl } from "./renderer.js";
+import { initHooks } from "./hook.js";
+import homeGenerator from "./generators/generator-home.js";
+import archiveGenerator from "./generators/generator-archive.js";
+import taxonomyGenerator from "./generators/generator-taxonomy.js";
+import { renderMarkdown } from "./markdown.js";
+
+export type PluginKind = "generator" | "hook" | "renderer" | "helper";
 
 /** 插件类型与文件名前缀的映射（前缀用于校验与分类，api 统一传入） */
-const PLUGIN_PREFIX_RE = /^(generator|hook|renderer)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
+const PLUGIN_PREFIX_RE = /^(generator|hook|renderer|helper)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
+
+/** 创建统一 api 并注册内置插件（helper / generator），返回可供插件与主题使用的 PluginAPI */
+export function initCorePlugins(config: SiteConfig, cwd: string): PluginAPI {
+  const helper: HelperRegistry = new HelperRegistryImpl();
+  registerCoreHelpers(helper);
+
+  const generator: GeneratorRegistry = new GeneratorRegistryImpl();
+  const renderer: RendererRegistry = new RendererRegistryImpl();
+  renderer.register("markdown", renderMarkdown as Renderer);
+  const hook = initHooks();
+
+  const api: PluginAPI = {
+    config,
+    cwd,
+    plugins: {
+      generators: generator,
+      helpers: helper,
+      hooks: hook,
+      renderers: renderer,
+    },
+  };
+
+  // 内置 generator（home / archive / taxonomy）：注册后站点/主题插件可同名覆盖
+  registerCoreGenerators(api);
+
+  return api;
+}
+
+/** 内置 generator 注册（initCorePlugins 阶段调用） */
+export function registerCoreGenerators(api: PluginAPI): void {
+  homeGenerator(api);
+  archiveGenerator(api);
+  taxonomyGenerator(api);
+}
+
+/** 主题插件目录加载（build 阶段调用）：themes/<theme>/ 下的 generator-/hook- 等 */
+export async function loadThemePlugins(
+  api: PluginAPI,
+  cwd: string,
+  themeName: string,
+): Promise<void> {
+  await loadPlugins(path.join(cwd, "themes", themeName), api);
+}
+
+/** 站点插件目录加载（build 阶段调用）：pluginsDir（默认 plugins/）下的插件 */
+export async function loadSitePlugins(api: PluginAPI, cwd: string): Promise<void> {
+  await loadPlugins(path.join(cwd, api.config.pluginsDir ?? "plugins"), api);
+}
 
 export async function loadPlugins(
   pluginsDir: string,
@@ -54,3 +117,41 @@ export async function loadPlugins(
     await fn(api);
   }
 }
+
+
+
+/**
+ * 插件系统
+ * 插件按文件前缀分为 generator / hook / renderer 三类，在可配置目录（默认 plugins/）中自动发现。
+ * 每个插件文件默认导出 `(api) => void | Promise<void>`，api 为统一 PluginAPI（含 plugins 命名空间）。
+ * 主题入口同样以 `(api) => Theme` 函数形式接收统一 api。
+ * 钩子采用 tapable 风格：同步/异步顺序执行。
+ */
+
+/**
+ * 统一插件 api：config / cwd / site 为共享基础，四类能力收敛到 plugins 命名空间。
+ */
+export interface PluginAPI {
+  /** 访问站点配置 */
+  config: SiteConfig;
+  /** 项目根目录 */
+  cwd: string;
+  /** 站点对象（afterInit 之后可用） */
+  site?: Site;
+  /** 注册/使用能力命名空间 */
+  plugins: {
+    hooks: Hooks;
+    generators: GeneratorRegistry;
+    renderers: RendererRegistry;
+    helpers: HelperRegistry;
+  };
+}
+
+/** generator 插件 api（plugins/generator-*.ts） */
+export type GeneratorAPI = PluginAPI;
+/** hook 插件 api（plugins/hook-*.ts） */
+export type HookAPI = PluginAPI;
+/** renderer 插件 api（plugins/renderer-*.ts） */
+export type RendererAPI = PluginAPI;
+/** 主题 api（themes/<name>/index.ts 默认导出函数入参） */
+export type ThemeAPI = PluginAPI;

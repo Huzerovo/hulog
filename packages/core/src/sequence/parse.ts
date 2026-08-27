@@ -1,14 +1,14 @@
 import fs from "node:fs";
-import path from "node:path";
 import matter from "gray-matter";
+import path from "node:path";
 import type { Collection, CollectionConfig } from "../types/collection.js";
-import type { FileEntry } from "../types/plugins.js";
 import type { Page, PagesIndex } from "../types/page.js";
 import type { SiteConfig } from "../types/config.js";
-import { parseSlugFromFilename, resolveUrl } from "../route.js";
-import { parseCategories } from "../category.js";
-import { toPosixPath } from "../path.js";
 import { CollectionImpl } from "../site.js";
+import { FileEntry } from "../types/sequence.js";
+import { parseCategories } from "../category.js";
+import { parseSlugFromFilename, resolveUrl } from "../route.js";
+import { toPosixPath } from "../path.js";
 
 /** front-matter 中的日期值 → Date（支持 Date、字符串、时间戳） */
 function toDate(value: unknown): Date | undefined {

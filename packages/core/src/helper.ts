@@ -5,12 +5,37 @@ import {
   parseCategories,
 } from "./category.js";
 import { pageUrl, paginate, pinSort } from "./pagination.js";
-import type { HelperRegistry } from "./runtime.js";
+import { HelperRegistry } from "./types/helper.js";
 
 /**
  * 核心内置 helper 注册（每次构建独立注册表）。
  * 插件与主题经 api.plugins.helper.get(...) 使用。
  */
+
+
+export class HelperRegistryImpl implements HelperRegistry {
+  private helpers = new Map<string, Function>();
+  private assetsPrefix = "/assets";
+
+  /** 注册模板辅助函数 */
+  register(name: string, fn: Function): void {
+    this.helpers.set(name, fn);
+  }
+
+  /** 获取辅助函数 */
+  get(name: string): Function | undefined {
+    return this.helpers.get(name);
+  }
+
+  /** 主题资源输出前缀（merge → /assets；namespace → /assets/<theme>） */
+  setThemeAssetsPrefix(prefix: string): void {
+    this.assetsPrefix = prefix;
+  }
+
+  get themeAssetsPrefix(): string {
+    return this.assetsPrefix;
+  }
+}
 
 export function registerCoreHelpers(registry: HelperRegistry): void {
   /** 分类工具 */
@@ -66,7 +91,7 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
   /** 封面确定性选择：单封面直接返回；多封面基于 slug 哈希取模 */
   registry.register(
     "pickCover",
-    (page: { cover?: string | string[]; slug?: string }) => {
+    (page: { cover?: string | string[]; slug?: string; }) => {
       if (!page.cover) return null;
       const list = Array.isArray(page.cover) ? page.cover : [page.cover];
       if (list.length === 0) return null;

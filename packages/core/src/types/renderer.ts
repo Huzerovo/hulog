@@ -6,6 +6,12 @@ import type { ResolveContext } from "../assets.js";
  * 渲染器 —— 将 Markdown 渲染为 HTML + 目录。
  * render 阶段为单一职责（不可 hook、可被用户 renderer 覆盖）；before/afterRender 可 hook。
  */
+/** 渲染器注册表：register 即覆盖当前渲染器（内置默认 renderer 被用户 renderer 替换） */
+export interface RendererRegistry {
+  register(name: string, render: Renderer): void;
+  get(name: string): Renderer | undefined;
+}
+
 
 /** 目录条目 */
 export interface TocEntry {
@@ -33,7 +39,3 @@ export type Renderer = (
   ctx: RenderContext,
 ) => MarkdownResult | Promise<MarkdownResult>;
 
-/** 渲染器注册表：register 即覆盖当前渲染器（内置默认 renderer 被用户 renderer 替换） */
-export interface RendererRegistry {
-  register(name: string, render: Renderer): void;
-}

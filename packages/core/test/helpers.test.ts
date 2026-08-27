@@ -1,20 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  createHelperRegistry,
-  type HelperRegistry,
-} from "../src/runtime.js";
-import { registerCoreHelpers } from "../src/helpers.js";
+
+import { HelperRegistryImpl, registerCoreHelpers } from "../src/helper.js";
+import type { HelperRegistry } from "../src/types/helper.js";
 
 function registry(): HelperRegistry {
-  const reg = createHelperRegistry();
+  const reg = new HelperRegistryImpl();
   registerCoreHelpers(reg);
   return reg;
 }
 
 test("注册表相互隔离（不累积/不泄漏）", () => {
-  const a = createHelperRegistry();
-  const b = createHelperRegistry();
+  const a = new HelperRegistryImpl();
+  const b = new HelperRegistryImpl();
   a.register("x", () => 1);
   b.register("x", () => 2);
   assert.equal(a.get("x")!(), 1);

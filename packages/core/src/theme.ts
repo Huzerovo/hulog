@@ -6,7 +6,7 @@ import { build } from "esbuild";
 import { h } from "preact";
 import { render } from "preact-render-to-string";
 import type { LayoutProps, Theme } from "./types/theme.js";
-import type { PluginAPI } from "./types/plugins.js";
+import type { PluginAPI } from "./plugins.js";
 
 /**
  * 主题加载与渲染

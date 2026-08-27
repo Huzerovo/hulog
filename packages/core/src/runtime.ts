@@ -4,31 +4,34 @@
  * 经统一 api.plugins.helper 暴露给插件与主题（register 注册 / get 读取）。
  */
 
-export class HelperRegistry {
-  private helpers = new Map<string, Function>();
-  private assetsPrefix = "/assets";
+// import { HelperRegistryImpl } from "./types/helper.js";
+// import { HelperRegistry } from "./types/plugins";
 
-  /** 注册模板辅助函数 */
-  register(name: string, fn: Function): void {
-    this.helpers.set(name, fn);
-  }
+// export class HelperRegistry {
+//   private helpers = new Map<string, Function>();
+//   private assetsPrefix = "/assets";
 
-  /** 获取辅助函数 */
-  get(name: string): Function | undefined {
-    return this.helpers.get(name);
-  }
+//   [>* 注册模板辅助函数 <]
+//   register(name: string, fn: Function): void {
+//     this.helpers.set(name, fn);
+//   }
 
-  /** 主题资源输出前缀（merge → /assets；namespace → /assets/<theme>） */
-  setThemeAssetsPrefix(prefix: string): void {
-    this.assetsPrefix = prefix;
-  }
+//   [>* 获取辅助函数 <]
+//   get(name: string): Function | undefined {
+//     return this.helpers.get(name);
+//   }
 
-  get themeAssetsPrefix(): string {
-    return this.assetsPrefix;
-  }
-}
+//   [>* 主题资源输出前缀（merge → /assets；namespace → /assets/<theme>） <]
+//   setThemeAssetsPrefix(prefix: string): void {
+//     this.assetsPrefix = prefix;
+//   }
+
+//   get themeAssetsPrefix(): string {
+//     return this.assetsPrefix;
+//   }
+// }
 
 /** 创建独立注册表（每次 build 调用一次） */
-export function createHelperRegistry(): HelperRegistry {
-  return new HelperRegistry();
-}
+// export function createHelperRegistry(): HelperRegistry {
+//   return new HelperRegistryImpl();
+// }

@@ -29,9 +29,26 @@ export {
 export { loadSiteConfig } from "./config.js";
 export { loadTheme, renderPage, resolveThemeDir } from "./theme.js";
 export { renderMarkdown } from "./markdown.js";
-export { AsyncHookImpl } from "./hook.js";
+export { AsyncHookImpl, initHooks } from "./hook.js";
 export { SiteImpl, CollectionImpl } from "./site.js";
 export { RendererRegistryImpl } from "./renderer.js";
+export { GeneratorRegistryImpl } from "./generator.js";
+export {
+  HelperRegistryImpl,
+  registerCoreHelpers,
+} from "./helper.js";
+export {
+  initCorePlugins,
+  registerCoreGenerators,
+  loadThemePlugins,
+  loadSitePlugins,
+  type PluginAPI,
+  type PluginKind,
+  type GeneratorAPI,
+  type HookAPI,
+  type RendererAPI,
+  type ThemeAPI,
+} from "./plugins.js";
 export {
   scanAssets,
   resolveAssetRef,

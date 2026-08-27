@@ -1,11 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import less from "less";
-import { AsyncHookImpl } from "./hook.js";
 import { loadSiteConfig, loadThemeConfig } from "./config.js";
 import { SiteImpl } from "./site.js";
 import { seqParse } from "./sequence/parse.js";
-import { renderMarkdown } from "./markdown.js";
 import {
   loadTheme,
   renderPage,
@@ -18,20 +16,13 @@ import {
   assetType,
   type ResolveContext,
 } from "./assets.js";
-import {
-  createHelperRegistry,
-  type HelperRegistry,
-} from "./runtime.js";
 import { toPosixPath } from "./path.js";
-import { registerCoreHelpers } from "./helpers.js";
-import { RendererRegistryImpl } from "./renderer.js";
 import type { Asset } from "./types/asset.js";
-import type { FileEntry, Hooks, PluginAPI } from "./types/plugins.js";
 import type { Page } from "./types/page.js";
-import type { Site } from "./types/site.js";
-import type { Renderer } from "./types/renderer.js";
 import type { SiteConfig } from "./types/config.js";
-import { loadPlugins } from './plugins.js';
+import type { GeneratorCallback } from "./types/generator.js";
+import type { FileEntry } from "./types/sequence.js";
+import { initCorePlugins, loadThemePlugins, loadSitePlugins } from './plugins.js';
 import seqRead from "./sequence/read.js";
 
 /**
@@ -50,27 +41,6 @@ export interface BuildResult {
   pages: { page: Page; html: string; }[];
 }
 
-function initHooks(): Hooks {
-  return {
-    beforeInit: new AsyncHookImpl(),
-    afterInit: new AsyncHookImpl(),
-    beforeRead: new AsyncHookImpl(),
-    afterRead: new AsyncHookImpl(),
-    beforeParse: new AsyncHookImpl(),
-    afterParse: new AsyncHookImpl(),
-    beforeFilter: new AsyncHookImpl(),
-    afterFilter: new AsyncHookImpl(),
-    beforeGenerate: new AsyncHookImpl(),
-    afterGenerate: new AsyncHookImpl(),
-    beforeProcess: new AsyncHookImpl(),
-    afterProcess: new AsyncHookImpl(),
-    beforeRender: new AsyncHookImpl(),
-    afterRender: new AsyncHookImpl(),
-    beforeWrite: new AsyncHookImpl(),
-    afterWrite: new AsyncHookImpl(),
-  };
-}
-
 
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const buildLog = (msg: string) => console.log("  [build]: " + msg);
@@ -83,48 +53,17 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // TODO 写一个 test 用于验证
   const siteConfig = await loadSiteConfig(cwd);
 
-  const hooks = initHooks();
-
-  // 本次构建独立的 helper 注册表：插件/主题经 api.plugins.helper 注册与使用。
-  // 每次 build 新建，避免 dev 热重建 / 多次构建之间累积与泄漏。
-  const helpers: HelperRegistry = createHelperRegistry();
-  registerCoreHelpers(helpers);
-
-  const generators: {
-    name: string;
-    fn: (site: Site) => Page[] | Promise<Page[]>;
-  }[] = [];
-  const rendererRegistry = new RendererRegistryImpl();
-  // 内置默认 renderer（markdown 渲染）；用户 renderer 经 api.plugins.renderer.register 覆盖
-  rendererRegistry.register("markdown", renderMarkdown as Renderer);
-
-  // 统一插件 api：四类能力收敛到 plugins 命名空间，插件与主题共享同一对象
-  const api: PluginAPI = {
-    config: siteConfig,
-    cwd,
-    plugins: {
-      generator: {
-        register(name, fn) {
-          generators.push({ name, fn });
-        },
-      },
-      hook: hooks,
-      renderer: rendererRegistry,
-      helper: helpers,
-    },
-  };
-
-  // ---- 插件 + 主题：在 init 之前加载，确保全流程 hook 生效（含 beforeInit/afterInit） ----
-  // 主题入口与插件共享同一 api，可注册 generator/helper/hook。
-  const sitePluginsDir = path.join(cwd, siteConfig.pluginsDir ?? "plugins");
-  const themePluginsDir = path.join(cwd, "themes", siteConfig.theme);
-  await loadPlugins(themePluginsDir, api);
-  await loadPlugins(sitePluginsDir, api);
-  buildLog("Loaded Plugins");
-
   // ---- init ----
   // NOTE 感觉 init 阶段的 hook 不是很有必要
-  await hooks.beforeInit.call(siteConfig);
+  // await hooks.beforeInit.call(siteConfig);
+  const api = initCorePlugins(siteConfig, cwd);
+  await loadThemePlugins(api, cwd, siteConfig.theme);
+  await loadSitePlugins(api, cwd);
+  const renderers = api.plugins.renderers;
+  const helpers = api.plugins.helpers;
+  const generators = api.plugins.generators;
+  const hooks = api.plugins.hooks;
+  buildLog("Loaded Plugins");
   const site = new SiteImpl(siteConfig);
   await hooks.afterInit.call(site);
   api.site = site;
@@ -194,10 +133,11 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // NOTE 这里的 pages 可能在上一阶段剔除了草稿
   const allPages = [...site.pages];
   await hooks.beforeGenerate.call(allPages);
-  // NOTE 
-  // generator 的实现需要再进一步设计，如将常用的 archive, category, tags 页面移到内置实现。
-  for (const g of generators) {
-    const virtuals = await g.fn(site);
+  // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
+  const callbacks: GeneratorCallback[] = [];
+  generators.forEach((fn) => callbacks.push(fn));
+  for (const fn of callbacks) {
+    const virtuals = await fn(site);
     for (const v of virtuals) {
       allPages.push(v);
       // 挂载虚拟页面到对应集合（或 virtual 集合）
@@ -264,7 +204,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
     resolveCover(page, resolveCtx);
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
-    const renderer = rendererRegistry.get();
+    const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
     const mdResult = await renderer(page.rawContent, page, {
       config: siteConfig,

@@ -1,6 +1,6 @@
 import type { CategoryPath, Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
-import type { GeneratorAPI } from "../types/plugins.js";
+import type { GeneratorAPI } from "../plugins.js";
 
 /**
  * 分类/标签页生成器：
@@ -11,7 +11,7 @@ import type { GeneratorAPI } from "../types/plugins.js";
  * 直接 + 间接子分类的文章，与 Hexo 行为一致）。
  */
 export default function (api: GeneratorAPI) {
-  const helper = api.plugins.helper;
+  const helper = api.plugins.helpers;
   const paginate = helper.get("paginate") as (
     posts: Page[],
     opts: PaginateOptions,
@@ -28,7 +28,7 @@ export default function (api: GeneratorAPI) {
     path: CategoryPath,
   ) => string;
 
-  api.plugins.generator.register("taxonomy", (site): Page[] => {
+  api.plugins.generators.register("taxonomy", (site): Page[] => {
     const posts = site.getCollection("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;

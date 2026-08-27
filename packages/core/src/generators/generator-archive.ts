@@ -1,6 +1,6 @@
 import type { Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
-import type { GeneratorAPI } from "../types/plugins.js";
+import type { GeneratorAPI } from "../plugins.js";
 
 /**
  * 归档生成器（参考 huzerovo scripts/generator/archive_page.js）：
@@ -8,7 +8,7 @@ import type { GeneratorAPI } from "../types/plugins.js";
  * - /archive/<year>/     单年归档（layout: archive）
  */
 export default function (api: GeneratorAPI) {
-  const helper = api.plugins.helper;
+  const helper = api.plugins.helpers;
   const paginate = helper.get("paginate") as (
     posts: Page[],
     opts: PaginateOptions,
@@ -19,7 +19,7 @@ export default function (api: GeneratorAPI) {
     n: number,
   ) => string;
 
-  api.plugins.generator.register("archive", (site): Page[] => {
+  api.plugins.generators.register("archive", (site): Page[] => {
     const posts = (site.getCollection("posts")?.getPages(true) ?? []).filter(
       (p) => p.date,
     );

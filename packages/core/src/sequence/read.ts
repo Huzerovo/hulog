@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import type { FileEntry } from "../types/plugins.js";
 import path from "node:path";
 import { toPosixPath } from "../path.js";
+import { FileEntry } from "../types/sequence.js";
 
 function scanContent(contentRoot: string, projectRoot: string): FileEntry[] {
   if (!fs.existsSync(contentRoot)) {
