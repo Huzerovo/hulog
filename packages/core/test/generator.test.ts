@@ -27,11 +27,11 @@ test("register/get/forEach 同名覆盖", () => {
   assert.deepEqual(seen, ["home"]);
 });
 
-test("initCorePlugins 注册内置 generator", () => {
+test("initCorePlugins 注册内置 generator（core: 前缀）", () => {
   const api = initCorePlugins(baseConfig, "/tmp");
   const names: string[] = [];
   api.plugins.generators.forEach((fn, name) => names.push(name));
-  assert.deepEqual(names, ["home", "archive", "taxonomy"]);
+  assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy"]);
 });
 
 test("registerCoreGenerators 可重复注册（幂等）", () => {
@@ -39,7 +39,7 @@ test("registerCoreGenerators 可重复注册（幂等）", () => {
   registerCoreGenerators(api);
   const names: string[] = [];
   api.plugins.generators.forEach((fn, name) => names.push(name));
-  assert.deepEqual(names, ["home", "archive", "taxonomy"]);
+  assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy"]);
 });
 
 test("内置 generator 生成 virtual 页面（site 有 posts 时）", async () => {
@@ -69,8 +69,8 @@ test("内置 generator 生成 virtual 页面（site 有 posts 时）", async () 
         : undefined,
   } as any;
 
-  const home = api.plugins.generators.get("home")!;
+  const home = api.plugins.generators.get("core:home")!;
   const homePages = await home(site);
   assert.ok(homePages.length >= 1);
-  assert.ok(homePages.every((p) => p.collection === "virtual"));
+  assert.ok(homePages.every((p) => p.collection === "core:virtual"));
 });

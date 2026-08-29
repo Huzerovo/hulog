@@ -1,4 +1,10 @@
 /**
+ * 插件系统
+ * 插件按文件前缀分为 generator / hook / renderer 三类，在可配置目录（默认 plugins/）中自动发现。
+ * 每个插件文件默认导出 `(api) => void | Promise<void>`，api 为统一 PluginAPI（含 plugins 命名空间）。
+ * 主题入口同样以 `(api) => Theme` 函数形式接收统一 api。
+ * 钩子采用 tapable 风格：同步/异步顺序执行。
+ *
  * 从插件目录自动发现并加载插件：
  * - generator-*.ts / hook-*.ts / renderer-*.ts 按前缀注入统一 api（含 plugins 命名空间）
  * - 无前缀文件（如共享工具）忽略并警告
@@ -63,12 +69,13 @@ export function registerCoreGenerators(api: PluginAPI): void {
   taxonomyGenerator(api);
 }
 
-/** 主题插件目录加载（build 阶段调用）：themes/<theme>/ 下的 generator-/hook- 等 */
+/** 主题插件目录加载（build 阶段调用）：themes/<theme>/plugins/ 下的 generator-/hook- 等 */
 export async function loadThemePlugins(
   api: PluginAPI,
   cwd: string,
   themeName: string,
 ): Promise<void> {
+  // 主题插件可选：目录不存在时不告警
   await loadPlugins(path.join(cwd, "themes", themeName, "plugins"), api);
 }
 
@@ -82,11 +89,9 @@ export async function loadPlugins(
   api: PluginAPI,
 ): Promise<void> {
   if (!fs.existsSync(pluginsDir)) {
-    console.warn(
-      `[warn] 插件目录不存在，跳过插件加载：${pluginsDir}`,
-    );
     return;
   }
+  console.warn(`[warn] 加载插件：${pluginsDir}`);
   const jiti = createJiti(import.meta.url, { interopDefault: true });
   const files = fs
     .readdirSync(pluginsDir, { withFileTypes: true })
@@ -117,16 +122,6 @@ export async function loadPlugins(
     await fn(api);
   }
 }
-
-
-
-/**
- * 插件系统
- * 插件按文件前缀分为 generator / hook / renderer 三类，在可配置目录（默认 plugins/）中自动发现。
- * 每个插件文件默认导出 `(api) => void | Promise<void>`，api 为统一 PluginAPI（含 plugins 命名空间）。
- * 主题入口同样以 `(api) => Theme` 函数形式接收统一 api。
- * 钩子采用 tapable 风格：同步/异步顺序执行。
- */
 
 /**
  * 统一插件 api：config / cwd / site 为共享基础，四类能力收敛到 plugins 命名空间。

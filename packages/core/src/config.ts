@@ -1,6 +1,7 @@
 import { cosmiconfig } from "cosmiconfig";
 import { createJiti } from "jiti";
 import type { SiteConfig } from "./types/config.js";
+import { CONTENT_BASE } from "./types/config.js";
 
 const MODULE_NAME = "blog";
 
@@ -50,7 +51,7 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
 
   const defaults: Partial<SiteConfig> = {
     assetsDir: "assets",
-    content: { rootDir: "content" },
+    contentDir: CONTENT_BASE,
     markdown: { highlight: true, katex: true, clientHighlight: false },
     server: { port: 3000, hot: true },
     pluginsDir: "plugins",

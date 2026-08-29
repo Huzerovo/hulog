@@ -20,17 +20,15 @@ export interface Hooks {
   afterRead: AsyncHook<[FileEntry[]]>;
   // parse
   afterParse: AsyncHook<[Page[]]>; // 集合视角；全局数组视角在 afterFilter 后经 site.pages 获取
-  // merge
-  afterMerge: AsyncHook<[Page[]]>;
   // filter
   afterFilter: AsyncHook<[Page[]]>;
+  // generate
+  afterGenerate: AsyncHook<[Page[]]>;
+  // merge
+  afterMerge: AsyncHook<[Page[]]>;
   // collect
   afterCollect: AsyncHook<[Collection[]]>;
-  // generate
-  beforeGenerate: AsyncHook<[Page[]]>;
-  afterGenerate: AsyncHook<[Page[]]>;
   // process
-  beforeProcess: AsyncHook<[Asset[]]>;
   afterProcess: AsyncHook<[Asset[]]>;
   // render
   beforeRender: AsyncHook<[Page]>; // 渲染前拦截（不可替换 render，仅可修改 page/准备）

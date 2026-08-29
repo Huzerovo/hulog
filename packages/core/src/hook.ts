@@ -26,18 +26,20 @@ export function initHooks(): Hooks {
     afterRead: new AsyncHookImpl(),
     // parse
     afterParse: new AsyncHookImpl(),
-    // collect 考虑放到最后执行？
-    afterCollect: new AsyncHookImpl(),
-    // merge
-    afterMerge: new AsyncHookImpl(),
     // filter
     afterFilter: new AsyncHookImpl(),
-    beforeGenerate: new AsyncHookImpl(),
+    // generate
     afterGenerate: new AsyncHookImpl(),
-    beforeProcess: new AsyncHookImpl(),
+    // merge
+    afterMerge: new AsyncHookImpl(),
+    // collect
+    afterCollect: new AsyncHookImpl(),
+    // process
     afterProcess: new AsyncHookImpl(),
+    // render
     beforeRender: new AsyncHookImpl(),
     afterRender: new AsyncHookImpl(),
+    // write
     beforeWrite: new AsyncHookImpl(),
     afterWrite: new AsyncHookImpl(),
   };

@@ -23,7 +23,7 @@ export async function newCmd(opts: NewOptions) {
   const cwd = process.cwd();
   const config = await loadSiteConfig(cwd);
   const draftByDefault = opts.draft !== false;
-  const contentRoot = path.join(cwd, config.content?.rootDir ?? "content");
+  const contentRoot = path.join(cwd, config.contentDir ?? "content");
 
   // 目标集合与目录
   let collectionName = opts.collection;

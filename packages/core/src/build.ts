@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import less from "less";
 import { loadSiteConfig, loadThemeConfig } from "./config.js";
-import { SiteImpl } from "./site.js";
+import { SiteImpl, CollectionImpl } from "./site.js";
 import { seqParse } from "./sequence/parse.js";
 import {
   loadTheme,
@@ -19,7 +19,9 @@ import {
 import { toPosixPath } from "./path.js";
 import type { Asset } from "./types/asset.js";
 import type { Page } from "./types/page.js";
+import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
 import type { SiteConfig } from "./types/config.js";
+import { CONTENT_BASE } from "./types/config.js";
 import type { GeneratorCallback } from "./types/generator.js";
 import type { FileEntry, RenderResult } from "./types/sequence.js";
 import { initCorePlugins, loadThemePlugins, loadSitePlugins } from './plugins.js';
@@ -79,7 +81,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   };
   siteConfig.themeConfig = mergedThemeConfig;
 
-  const contentRoot = path.join(cwd, siteConfig.content?.rootDir ?? "content");
+  const contentRoot = path.join(cwd, siteConfig.contentDir ?? CONTENT_BASE);
   const assetsDir = siteConfig.assetsDir ?? "assets";
   const assetsDirAbs = path.join(cwd, assetsDir);
 
@@ -105,10 +107,40 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterFilter.call(filteredPages);
   buildLog("Finished filter");
 
+  // ---- generate ----
+  // NOTE 这里的 pages 可能在上一阶段剔除了草稿
+  const virtualPages: Page[] = [];
+  // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
+  const callbacks: GeneratorCallback[] = [];
+  generators.forEach((fn) => callbacks.push(fn));
+  for (const fn of callbacks) {
+    const virtuals = await fn(site);
+    for (const v of virtuals) {
+      // 虚拟页 URL 规整：统一以 "/" 结尾（作为 HTML 页面输出 index.html），
+      // 提前到 generate 阶段处理，使 checkUrlConflicts 能发现真实冲突
+      if (v.collection === VIRTUAL_PAGE_COLLECTION && !v.url.endsWith("/")) {
+        v.url += "/";
+      }
+      virtualPages.push(v);
+      // 挂载虚拟页面到对应集合（不存在则创建，保证 site.pages 可枚举虚拟页）
+      let col = site.collections.get(v.collection);
+      if (!col) {
+        col = new CollectionImpl(v.collection, {
+          name: v.collection,
+          sourceDir: "",
+        });
+        site.collections.set(v.collection, col);
+      }
+      col.pages.push(v);
+    }
+  }
+  checkUrlConflicts(virtualPages);
+  await hooks.afterGenerate.call(virtualPages);
+  buildLog("Finished generate");
+
   // ---- merge ----
-  // 合并所有页面
-  // const allPages: Page[] = [...physicsPage, ...virtualPages];
-  const allPages: Page[] = [...physicsPage];
+  // 合并所有页面（已过滤草稿，非 dev 下草稿不进入构建）
+  const allPages: Page[] = [...filteredPages];
   await hooks.afterMerge.call(allPages);
   buildLog(`Finished merge, all pages: ${allPages.length}`);
 
@@ -120,26 +152,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   };
   await hooks.afterCollect.call(collections);
   buildLog("Finished collect");
-
-  // ---- generate ----
-  // NOTE 这里的 pages 可能在上一阶段剔除了草稿
-  await hooks.beforeGenerate.call(allPages);
-  // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
-  const callbacks = new Map<string, GeneratorCallback>();
-  generators.forEach((fn, name) => callbacks.set(name, fn));
-  for (const [name, fn] of callbacks) {
-    console.log("运行 Generator: " + name);
-    const virtuals = await fn(site);
-    for (const v of virtuals) {
-      allPages.push(v);
-      // 挂载虚拟页面到对应集合（或 virtual 集合）
-      const col = site.collections.get(v.collection);
-      if (col) col.pages.push(v);
-    }
-  }
-  checkUrlConflicts(allPages);
-  await hooks.afterGenerate.call(allPages);
-  buildLog("Finished generate");
 
   // ---- process ----
   const scanned = scanAssets({ contentRoot, assetsDirAbs, pages: allPages });
@@ -174,7 +186,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     }
   }
   const assets = site.assets;
-  await hooks.beforeProcess.call(assets);
   await hooks.afterProcess.call(assets);
   if (scanned.stray.length > 0) {
     console.warn(
@@ -252,11 +263,13 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 function checkUrlConflicts(pages: Page[]) {
   const seen = new Map<string, string>();
   for (const p of pages) {
-    const prev = seen.get(p.url);
+    // 忽略尾斜杠差异："/search" 与 "/search/" 输出同一 index.html，视为冲突
+    const key = p.url.replace(/\/+$/, "");
+    const prev = seen.get(key);
     if (prev) {
       throw new Error(`URL 冲突: "${p.url}"（${prev} 与 ${p.id}）`);
     }
-    seen.set(p.url, p.id);
+    seen.set(key, p.id);
   }
 }
 

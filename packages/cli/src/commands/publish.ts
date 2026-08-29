@@ -14,7 +14,7 @@ export interface PublishOptions {
 export async function publishCmd(opts: PublishOptions) {
   const cwd = process.cwd();
   const config = await loadSiteConfig(cwd);
-  const contentRoot = path.join(cwd, config.content?.rootDir ?? "content");
+  const contentRoot = path.join(cwd, config.contentDir ?? "content");
   const draftsDir = path.join(contentRoot, "drafts");
 
   if (!fs.existsSync(draftsDir)) {

@@ -109,7 +109,7 @@ export default function (api: RendererAPI) {
 ## 配置系统
 
 - **加载**（`config.ts`）：cosmiconfig 搜索 `blog.config.*`（ts/js/mjs/yaml/json），TS/ESM 经 jiti 加载。
-- **defineConfig**（`config/define.ts`）：对象或函数形式，统一并入默认值（`assetsDir`、`content.rootDir`、`markdown`、`server`、`cli` 等）。
+- **defineConfig**（`config/define.ts`）：对象或函数形式，统一并入默认值（`assetsDir`、`contentDir`、`markdown`、`server`、`cli` 等）。
 - **主题配置**（`loadThemeConfig`）：独立 `theme.config.*` 文件，与站点 `themeConfig` 内联合并，优先级：主题默认 < 站点 `theme.config.ts` < `blog.config.ts` 内联 `themeConfig`。
 
 ## 主题系统

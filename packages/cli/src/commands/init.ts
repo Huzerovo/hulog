@@ -7,9 +7,7 @@ export default {
   description: "A static blog",
   url: "https://example.com",
   theme: "default",
-  content: {
-    rootDir: "content",
-  },
+  contentDir: "content",
   assetsDir: "assets",
   collections: [
     {

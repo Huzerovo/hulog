@@ -4,10 +4,9 @@ import type { CollectionConfig } from "./collection.js";
  * 站点配置
  */
 
-export interface ContentConfig {
-  /** 内容根目录，默认 "content" */
-  rootDir?: string;
-}
+export const THEME_BASE = "themes";
+export const PLUGINS_BASE = "plugins";
+export const CONTENT_BASE = "content";
 
 export interface MarkdownConfig {
   /** 是否启用代码高亮（rehype-shiki），默认 true */
@@ -53,7 +52,8 @@ export interface SiteConfig {
   /** 主题配置（由主题消费，结构由主题定义） */
   themeConfig?: Record<string, unknown>;
 
-  content?: ContentConfig;
+  /** 内容根目录（相对项目根），默认 "content" */
+  contentDir?: string;
 
   /** 站点全局资源目录，默认 "assets"，输出到 dist/assets/ */
   assetsDir?: string;
