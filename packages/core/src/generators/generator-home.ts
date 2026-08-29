@@ -1,4 +1,4 @@
-import type { Page } from "../types/page.js";
+import { VIRTUAL_PAGE_COLLECTION, type Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
 import type { GeneratorAPI } from "../plugins.js";
 
@@ -19,7 +19,7 @@ export default function (api: GeneratorAPI) {
   ) => string;
   const pinSort = helper.get("pinSort") as (posts: Page[]) => Page[];
 
-  api.plugins.generators.register("home", (site): Page[] => {
+  api.plugins.generators.register("core:home", (site): Page[] => {
     const posts = site.getCollection("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
@@ -31,7 +31,7 @@ export default function (api: GeneratorAPI) {
       format,
       makePage: ({ posts, pagination }) => ({
         id: `virtual:home:${pagination.current}`,
-        collection: "virtual",
+        collection: VIRTUAL_PAGE_COLLECTION,
         sourcePath: null,
         url: pageUrl("/", format, pagination.current),
         aliases: [],

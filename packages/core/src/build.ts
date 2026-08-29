@@ -25,7 +25,6 @@ import type { FileEntry, RenderResult } from "./types/sequence.js";
 import { initCorePlugins, loadThemePlugins, loadSitePlugins } from './plugins.js';
 import seqRead from "./sequence/read.js";
 import { seqCollect } from "./sequence/collect.js";
-import { seqVirtual } from "./sequence/virtual.js";
 import { seqWrite } from "./sequence/write.js";
 
 export interface BuildOptions {
@@ -96,27 +95,22 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterParse.call(physicsPage);
   buildLog(`Finished parse, total physics pages: ${physicsPage.length}`);
 
-  // ---- virtual ----
-  // 虚拟页面生成阶段
-  const virtualPages = seqVirtual(siteConfig);
-  await hooks.afterVirtual.call(virtualPages);
-  buildLog(`Finished virtual, total virtual pages: ${virtualPages.length}`);
-
-  // ---- merge ----
-  // 合并所有页面
-  const allPages: Page[] = [...physicsPage, ...virtualPages];
-  await hooks.afterMerge.call(allPages);
-  buildLog(`Finished merge, all pages: ${allPages.length}`);
-
   // ---- filter ----
   const filteredPages: Page[] = [];
   if (options.dev) {
-    filteredPages.push(...allPages);
+    filteredPages.push(...physicsPage);
   } else {
-    filteredPages.push(...allPages.filter((page) => !page.draft));
+    filteredPages.push(...physicsPage.filter((page) => !page.draft));
   }
   await hooks.afterFilter.call(filteredPages);
   buildLog("Finished filter");
+
+  // ---- merge ----
+  // 合并所有页面
+  // const allPages: Page[] = [...physicsPage, ...virtualPages];
+  const allPages: Page[] = [...physicsPage];
+  await hooks.afterMerge.call(allPages);
+  buildLog(`Finished merge, all pages: ${allPages.length}`);
 
   // ---- colllect ----
   // 集合生成阶段
@@ -131,9 +125,10 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // NOTE 这里的 pages 可能在上一阶段剔除了草稿
   await hooks.beforeGenerate.call(allPages);
   // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
-  const callbacks: GeneratorCallback[] = [];
-  generators.forEach((fn) => callbacks.push(fn));
-  for (const fn of callbacks) {
+  const callbacks = new Map<string, GeneratorCallback>();
+  generators.forEach((fn, name) => callbacks.set(name, fn));
+  for (const [name, fn] of callbacks) {
+    console.log("运行 Generator: " + name);
     const virtuals = await fn(site);
     for (const v of virtuals) {
       allPages.push(v);

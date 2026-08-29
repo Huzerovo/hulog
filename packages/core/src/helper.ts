@@ -6,6 +6,7 @@ import {
 } from "./category.js";
 import { pageUrl, paginate, pinSort } from "./pagination.js";
 import { HelperRegistry } from "./types/helper.js";
+import { Page, PageBase, VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
 
 /**
  * 核心内置 helper 注册（每次构建独立注册表）。
@@ -104,4 +105,17 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
       return list[hash % list.length]!;
     },
   );
+  registry.register("virtualPage", (page: PageBase) => {
+    return {
+      ...page,
+      collection: VIRTUAL_PAGE_COLLECTION,
+      sourcePath: "",
+      aliases: [],
+      slug: "",
+      rawContent: "",
+      content: "",
+      data: {},
+      metadata: {},
+    };
+  });
 }

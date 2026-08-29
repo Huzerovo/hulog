@@ -1,4 +1,4 @@
-import type { Page } from "../types/page.js";
+import { VIRTUAL_PAGE_COLLECTION, type Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
 import type { GeneratorAPI } from "../plugins.js";
 
@@ -19,7 +19,7 @@ export default function (api: GeneratorAPI) {
     n: number,
   ) => string;
 
-  api.plugins.generators.register("archives", (site): Page[] => {
+  api.plugins.generators.register("core:archives", (site): Page[] => {
     const posts = (site.getCollection("posts")?.getPages(true) ?? []).filter(
       (p) => p.date,
     );
@@ -48,7 +48,7 @@ export default function (api: GeneratorAPI) {
         format,
         makePage: ({ posts, pagination }) => ({
           id: `virtual:archives:${pagination.current}`,
-          collection: "virtual",
+          collection: VIRTUAL_PAGE_COLLECTION,
           sourcePath: null,
           url: pageUrl(base, format, pagination.current),
           aliases: [],
@@ -70,7 +70,7 @@ export default function (api: GeneratorAPI) {
     for (const year of years) {
       pages.push({
         id: `virtual:archives:${year}`,
-        collection: "virtual",
+        collection: VIRTUAL_PAGE_COLLECTION,
         sourcePath: null,
         url: `/${archivesDir}/${year}/`,
         aliases: [],

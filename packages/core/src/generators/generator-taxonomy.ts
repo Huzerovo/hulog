@@ -1,4 +1,4 @@
-import type { CategoryPath, Page } from "../types/page.js";
+import { VIRTUAL_PAGE_COLLECTION, type CategoryPath, type Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
 import type { GeneratorAPI } from "../plugins.js";
 
@@ -10,7 +10,7 @@ import type { GeneratorAPI } from "../plugins.js";
  * 分类层级规则：每条分类路径的所有祖先也会生成页面（父分类页包含
  * 直接 + 间接子分类的文章，与 Hexo 行为一致）。
  */
-export default function (api: GeneratorAPI) {
+export default function(api: GeneratorAPI) {
   const helper = api.plugins.helpers;
   const paginate = helper.get("paginate") as (
     posts: Page[],
@@ -28,7 +28,7 @@ export default function (api: GeneratorAPI) {
     path: CategoryPath,
   ) => string;
 
-  api.plugins.generators.register("taxonomy", (site): Page[] => {
+  api.plugins.generators.register("core:taxonomy", (site): Page[] => {
     const posts = site.getCollection("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
@@ -69,7 +69,7 @@ export default function (api: GeneratorAPI) {
           format,
           makePage: ({ posts, pagination }) => ({
             id: `virtual:category:${JSON.stringify(path)}:${pagination.current}`,
-            collection: "virtual",
+            collection: VIRTUAL_PAGE_COLLECTION,
             sourcePath: null,
             url: pageUrl(base, format, pagination.current),
             aliases: [],
@@ -111,7 +111,7 @@ export default function (api: GeneratorAPI) {
           format,
           makePage: ({ posts, pagination }) => ({
             id: `virtual:tag:${name}:${pagination.current}`,
-            collection: "virtual",
+            collection: VIRTUAL_PAGE_COLLECTION,
             sourcePath: null,
             url: pageUrl(base, format, pagination.current),
             aliases: [],

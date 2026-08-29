@@ -26,8 +26,6 @@ export function initHooks(): Hooks {
     afterRead: new AsyncHookImpl(),
     // parse
     afterParse: new AsyncHookImpl(),
-    // virtual
-    afterVirtual: new AsyncHookImpl(),
     // collect 考虑放到最后执行？
     afterCollect: new AsyncHookImpl(),
     // merge

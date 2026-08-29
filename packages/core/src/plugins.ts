@@ -69,7 +69,7 @@ export async function loadThemePlugins(
   cwd: string,
   themeName: string,
 ): Promise<void> {
-  await loadPlugins(path.join(cwd, "themes", themeName), api);
+  await loadPlugins(path.join(cwd, "themes", themeName, "plugins"), api);
 }
 
 /** 站点插件目录加载（build 阶段调用）：pluginsDir（默认 plugins/）下的插件 */

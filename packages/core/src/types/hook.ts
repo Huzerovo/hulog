@@ -20,8 +20,6 @@ export interface Hooks {
   afterRead: AsyncHook<[FileEntry[]]>;
   // parse
   afterParse: AsyncHook<[Page[]]>; // 集合视角；全局数组视角在 afterFilter 后经 site.pages 获取
-  // virtual
-  afterVirtual: AsyncHook<[Page[]]>;
   // merge
   afterMerge: AsyncHook<[Page[]]>;
   // filter

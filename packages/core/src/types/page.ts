@@ -1,9 +1,13 @@
 /**
- * 分类路径：从根到叶的完整层级，如 ["分类二", "子分类"]。
- * 顶层分类为单元素路径，如 ["分类一"]。
+ * NOTE 分类可以是高维数组，在 yaml 中表示为：
+ * - A
+ *   - B1
+ *     - C
+ *   - B2
  */
 export type CategoryPath = string[];
 
+export const VIRTUAL_PAGE_COLLECTION = "core:virtual";
 
 // front-matter 字段
 export const RESERVED_KEYS = new Set([
@@ -36,79 +40,67 @@ export interface CategoryNode {
   children: CategoryNode[];
 }
 
-export interface VirtualPage {
-  title: string,
+// 生成一个页面所必须的选项，这个通常
+export interface PageBase {
+  // 用于标识唯一页面，一般使用文件系统的相对 content 路径
+  // 虚拟页面需要手动指定
   id: string,
+  // 目标输出 URL，不含域名，以 "/" 开头，如 "/post/hello/"
+  // 虚拟页面需要手动指定，物理页面的自动生成
   url: string,
+  // 页面标题
+  title: string,
+  // 布局，虚拟页面手动指定特殊 layout，物理页面根据 SiteConfig 自动生成（post 或者 page）
   layout: string,
+}
+
+// 文章页面的选项
+export interface PagePostOptional {
+  // 文章创建/发布时间
+  date: Date;
+  // 文章更新时间
+  updated: Date;
+  // 草稿标记
+  draft?: boolean;
+  // 文章标签
+  tags?: string[];
+  // 文章分类
+  categories?: CategoryPath[];
+  // 外链，用于外部文章
+  link?: string;
+  // 封面
+  cover?: string | string[];
+  // 文章摘要
+  excerpt?: string;
+}
+
+// 通用的一般选项，一般用于构建过程
+export interface PageOptional {
+  // 所属集合名称
+  collection: string;
+  // 源文件绝对路径；虚拟页面（生成器创建）为 null
+  sourcePath: string | null;
+  // 替代 URL 列表（如日期路径、别名等），用于生成额外页面或重定向 
+  aliases: string[];
+  // 自定义 slug，用于生成 URL 的路径片段，默认取自文件名 
+  slug: string;
+  // 文章原始内容
+  rawContent: string;
+  // 渲染后的内容
+  content: string;
+  // 所有非核心使用的键值对
+  data: Record<string, unknown>;
+  // 页面的其他元数据，由插件或核心动态添加
+  metadata: Record<string, unknown>;
 }
 
 /**
  * Page —— 核心数据抽象
  * 每个源文件经解析后生成统一的 Page 对象，供模板和插件使用。
+ * 所有构建选项均被赋值为非 undefine 默认值
  */
-export interface Page {
-  /** 唯一标识，通常为源文件相对于项目根的路径，如 "content/posts/hello.md" */
-  id: string;
+export type Page = PageBase & Partial<PagePostOptional> & PageOptional;
 
-  /** 所属集合名称 */
-  collection: string;
+// 文章类型
+export type Post = Pick<PageBase, "title"> & PagePostOptional;
 
-  /** 源文件绝对路径；虚拟页面（生成器创建）为 null */
-  sourcePath: string | null;
-
-  /** 目标输出 URL，不含域名，以 "/" 开头，如 "/post/hello/" */
-  url: string;
-
-  /** 替代 URL 列表（如日期路径、别名等），用于生成额外页面或重定向 */
-  aliases?: string[];
-
-  /** 文章标题，取自 front-matter 或文件名 */
-  title: string;
-
-  /** 创建日期：front-matter 的 date → 文件名 YYYY-MM-DD- 前缀（命中则用，可选增强）→ 均缺失时按集合规则处理 */
-  /** 集合需要日期时（sortBy: "date"，或 routePattern/permalink 含 :year/:month/:day）缺失即报错；否则为 undefined */
-  date?: Date;
-
-  /** 最后修改日期：front-matter updated；缺失为 undefined，不报错、不输出 */
-  updated?: Date;
-
-  /** 标签列表 */
-  tags?: string[];
-
-  /**
-   * 分类列表（支持层级）：每个元素是一条从根到叶的完整路径，如 ["机器学习", "线性回归"]。
-   * front-matter 写法见 parseCategories（字符串 / 数组 / 嵌套映射均支持）。
-   */
-  categories?: CategoryPath[];
-
-  /** 自定义 slug，用于生成 URL 的路径片段，默认取自文件名 */
-  slug?: string;
-
-  /** 布局名称，用于模板选择 */
-  layout: string;
-
-  /** 是否为草稿：front-matter draft: true，或源路径位于 content/drafts/ 下（parse 阶段强制置 true） */
-  draft: boolean;
-
-  /** 文章摘要（front-matter 提供，或由插件生成） */
-  excerpt?: string;
-
-  /** 外链文章地址（front-matter link）；标题/卡片可跳转外链，详情页仍正常渲染 */
-  link?: string;
-
-  /** 封面：单个资源路径或候选数组（随机封面）；parse 阶段按 §9.3 解析为最终 URL */
-  cover?: string | string[];
-
-  /** 原始 Markdown 内容 */
-  rawContent: string;
-
-  /** 渲染后的 HTML 内容（render 阶段填充，初始为空字符串） */
-  content: string;
-
-  /** 所有 front-matter 原始键值对（不含上述已映射字段） */
-  data: Record<string, unknown>;
-
-  /** 页面的其他元数据，由插件或核心动态添加 */
-  metadata: Record<string, unknown>;
-}

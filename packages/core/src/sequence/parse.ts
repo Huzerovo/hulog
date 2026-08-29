@@ -95,26 +95,29 @@ export function parseFile(
 
   const id = toPosixPath(relPath);
   const page: Page = {
+    // 必要项
     id,
-    collection: collectionName,
-    sourcePath: absPath,
     url,
-    aliases: [],
     title: typeof fm.title === "string" ? fm.title : slug,
+    layout: typeof fm.layout === "string" ? fm.layout : collectionConfig.defaultLayout ?? "page",
+    // 文章可选项
     date,
     updated,
+    draft,
     tags: toStringArray(fm.tags),
     categories: parseCategories(fm.categories),
-    slug,
-    layout: typeof fm.layout === "string" ? fm.layout : collectionConfig.defaultLayout ?? "page",
-    draft,
-    excerpt: typeof fm.excerpt === "string" ? fm.excerpt : undefined,
     link: typeof fm.link === "string" ? fm.link : undefined,
     cover: Array.isArray(fm.cover)
       ? fm.cover.map(String)
       : typeof fm.cover === "string"
         ? fm.cover
         : undefined,
+    excerpt: typeof fm.excerpt === "string" ? fm.excerpt : "",
+    // 构建生成选项
+    collection: collectionName,
+    sourcePath: absPath,
+    aliases: [],
+    slug,
     rawContent: content,
     content: "",
     data: dataRest,

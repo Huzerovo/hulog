@@ -1,5 +1,4 @@
 import type { CollectionConfig } from "./collection.js";
-import { VirtualPage } from "./page.js";
 
 /**
  * 站点配置
@@ -63,7 +62,6 @@ export interface SiteConfig {
   collections: CollectionConfig[];
 
   // 虚拟页面
-  virtualPages: VirtualPage[];
 
   markdown?: MarkdownConfig;
 
