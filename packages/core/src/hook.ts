@@ -23,18 +23,16 @@ export function initHooks(): Hooks {
     // init
     afterInit: new AsyncHookImpl(),
     // read
-    beforeRead: new AsyncHookImpl(),
     afterRead: new AsyncHookImpl(),
     // parse
-    beforeParse: new AsyncHookImpl(),
     afterParse: new AsyncHookImpl(),
     // virtual
     afterVirtual: new AsyncHookImpl(),
     // collect 考虑放到最后执行？
     afterCollect: new AsyncHookImpl(),
-
+    // merge
+    afterMerge: new AsyncHookImpl(),
     // filter
-    beforeFilter: new AsyncHookImpl(),
     afterFilter: new AsyncHookImpl(),
     beforeGenerate: new AsyncHookImpl(),
     afterGenerate: new AsyncHookImpl(),

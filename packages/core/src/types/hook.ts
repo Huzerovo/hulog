@@ -17,18 +17,17 @@ export interface Hooks {
   // init
   afterInit: AsyncHook<[Site]>;
   // read
-  beforeRead: AsyncHook<[]>;
   afterRead: AsyncHook<[FileEntry[]]>;
   // parse
-  beforeParse: AsyncHook<[FileEntry[]]>;
   afterParse: AsyncHook<[Page[]]>; // 集合视角；全局数组视角在 afterFilter 后经 site.pages 获取
   // virtual
   afterVirtual: AsyncHook<[Page[]]>;
-  // collect
-  afterCollect: AsyncHook<[Page[]]>;
+  // merge
+  afterMerge: AsyncHook<[Page[]]>;
   // filter
-  beforeFilter: AsyncHook<[Collection[]]>;
-  afterFilter: AsyncHook<[Collection[]]>;
+  afterFilter: AsyncHook<[Page[]]>;
+  // collect
+  afterCollect: AsyncHook<[Collection[]]>;
   // generate
   beforeGenerate: AsyncHook<[Page[]]>;
   afterGenerate: AsyncHook<[Page[]]>;

@@ -28,10 +28,6 @@ import { seqCollect } from "./sequence/collect.js";
 import { seqVirtual } from "./sequence/virtual.js";
 import { seqWrite } from "./sequence/write.js";
 
-/**
- * 构建管线：init → read → parse → filter → generate → process → render → write
- */
-
 export interface BuildOptions {
   cwd?: string;
   /** dev 模式：渲染 draft、不清理 dist（由 dev server 使用） */
@@ -46,6 +42,7 @@ export interface BuildResult {
 
 
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
+  // 考虑创建一个 utils.logger ？
   const buildLog = (msg: string) => console.log("  [build]: " + msg);
   // NOTE
   // 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写
@@ -69,7 +66,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterInit.call(site);
   api.site = site;
 
-  // ---- 主题加载（提前到 generate 之前：主题可注册 generator，供 generate 阶段使用） ----
+  // ---- 主题加载 ----
   const loadedTheme = await loadTheme(siteConfig.theme, cwd, api);
   // 主题资源输出前缀（themeAsset helper 与主题资源写入共用）
   const prefix = themeAssetsPrefix(siteConfig.theme, loadedTheme.theme.assetsMode);
@@ -79,7 +76,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const mergedThemeConfig: Record<string, unknown> = {
     ...(loadedTheme.theme.config ?? {}),
     ...(themeConfig ?? {}),
-    ...(siteConfig.themeConfig ?? {}),
+    ...(siteConfig.themeConfig ?? {}), // TODO 移除这个字段，site 和 theme 的配置分离
   };
   siteConfig.themeConfig = mergedThemeConfig;
 
@@ -89,54 +86,46 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- read ----
   // 文件读取阶段，同时读取文章文件与资源文件
-  // NOTE beforeRead 阶段的 hook 好像也有点意义不明
-  await hooks.beforeRead.call();
   const files: FileEntry[] = seqRead(contentRoot, cwd);
   await hooks.afterRead.call(files);
   buildLog("Finished read");
 
   // ---- parse ----
   // 物理页面生成阶段
-  await hooks.beforeParse.call(files);
   const physicsPage = seqParse(siteConfig, contentRoot, files);
   await hooks.afterParse.call(physicsPage);
   buildLog(`Finished parse, total physics pages: ${physicsPage.length}`);
 
   // ---- virtual ----
   // 虚拟页面生成阶段
-  // TODO 添加 hook
   const virtualPages = seqVirtual(siteConfig);
-  // 只传递 virtual pages
   await hooks.afterVirtual.call(virtualPages);
   buildLog(`Finished virtual, total virtual pages: ${virtualPages.length}`);
 
-  // ---- colllect ----
-  // 集合生成阶段
-  const allPages = [...physicsPage, ...virtualPages];
-  const collections = seqCollect(siteConfig, allPages);
-  for (const col of collections) {
-    // NOTE 添加正式发布是否允许草稿
-    if (!options.dev && col.config.isDrafts) continue;
-    site.collections.set(col.name, col);
-  };
-  buildLog("Finished collect");
+  // ---- merge ----
+  // 合并所有页面
+  const allPages: Page[] = [...physicsPage, ...virtualPages];
+  await hooks.afterMerge.call(allPages);
+  buildLog(`Finished merge, all pages: ${allPages.length}`);
 
   // ---- filter ----
-  // NOTE
-  // 这个阶段有点意义不明了 
-  // 是否应该将 parse 拆分成两个阶段，一个生成 Pages，一个生成 Collections
-  // 这个阶段则专注于设置 site.collections，不需要使 collection 耦合在 parse 阶段
-  await hooks.beforeFilter.call(collections);
-  // TODO 添加选项允许非 dev 时构建草稿
-  if (!options.dev) {
-    for (const col of collections) {
-      if (!col.config.isDrafts) {
-        col.pages = col.pages.filter((p) => !p.draft);
-      }
-    }
+  const filteredPages: Page[] = [];
+  if (options.dev) {
+    filteredPages.push(...allPages);
+  } else {
+    filteredPages.push(...allPages.filter((page) => !page.draft));
   }
-  await hooks.afterFilter.call(collections);
+  await hooks.afterFilter.call(filteredPages);
   buildLog("Finished filter");
+
+  // ---- colllect ----
+  // 集合生成阶段
+  const collections = seqCollect(siteConfig, filteredPages);
+  for (const col of collections) {
+    site.collections.set(col.name, col);
+  };
+  await hooks.afterCollect.call(collections);
+  buildLog("Finished collect");
 
   // ---- generate ----
   // NOTE 这里的 pages 可能在上一阶段剔除了草稿

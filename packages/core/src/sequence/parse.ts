@@ -134,42 +134,21 @@ export function seqParse(siteConfig: SiteConfig /* TODO 此参数需要移除 */
   // 且注册 render 也可以使用类似 `renderer.registry(type, callback)` 的方式添加额外支持
   // 整合之后还可以考虑使用 `const {pages, assets, unknow} = seqParse(files)` 的方式获取结果
   const mdFiles = files.filter((f) => !f.isAsset);
-  // const pageById: PagesIndex = new Map<string, Page>();
   const pages: Page[] = [];
-  // NOTE
-  // siteConfig 在 loadSiteConfig 会有默认值，这里这样写会导致太多地方硬编码 "content"
   for (const f of mdFiles) {
     const rel = toPosixPath(path.relative(contentRoot, f.absolutePath));
+    // 这里特殊处理一下 drafts 下的文件，将其全部标记为 draft
     const collectionName = rel.split("/")[0]!;
-    // TODO
-    // 将 collection 移到新的一个阶段，此函数只接受文件
     let collectionConfig = siteConfig.collections.find(
       (c) => c.sourceDir === collectionName,
     );
-    // collection 不存在时处理
-    // if (!collectionConfig) {
-    //   // 内置草稿区：强制 draft，dev 预览
-    //   // NOTE 考虑草稿区名称设置为可自定义
-    //   if (rel.startsWith("drafts/")) {
-    //     collectionConfig = DRAFTS_COLLECTION_CONFIG;
-    //   } else {
-    //     // NOTE
-    //     // 考虑到允许用户在 content 下创建自定义的文件夹，这里改为抛出警告会不会更好一些？
-    //     throw new Error(`目录 "${collectionName}" 未配置集合（config.collections 中缺少 sourceDir: "${collectionName}"）`);
-    //   }
-    // }
     if (!collectionConfig) {
       // TODO 更改为警告，而非抛出错误
       throw new Error(`目录 "${collectionName}" 未配置集合（config.collections 中缺少 sourceDir: "${collectionName}"）\nPath: ${rel}`);
     }
     const page = parseFile(f.absolutePath, rel, collectionConfig);
     pages.push(page);
-    // pageById.set(page.id, page);
   }
 
   return pages;
-
-  // const collections: Collection[] = buildCollections(siteConfig, pageById);
-
-  // return collections;
 }
