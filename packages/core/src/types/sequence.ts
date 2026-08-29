@@ -1,3 +1,4 @@
+import { Page } from "./page.js";
 
 /** 源文件条目（read 阶段产物） */
 export interface FileEntry {
@@ -9,3 +10,7 @@ export interface FileEntry {
   isAsset: boolean;
 }
 
+export interface RenderResult {
+  page: Page;
+  html: string;
+}

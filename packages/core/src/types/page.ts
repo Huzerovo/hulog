@@ -4,6 +4,23 @@
  */
 export type CategoryPath = string[];
 
+
+// front-matter 字段
+export const RESERVED_KEYS = new Set([
+  "title",
+  "date",
+  "updated",
+  "tags",
+  "categories",
+  "slug",
+  "layout",
+  "draft",
+  "excerpt",
+  "link",
+  "cover",
+  "permalink",
+]);
+
 /**
  * 分类树节点（分类页/树形展示用）。
  * count 为该分类直接或间接（含后代子分类）包含的文章数。
@@ -17,6 +34,13 @@ export interface CategoryNode {
   count: number;
   /** 子分类 */
   children: CategoryNode[];
+}
+
+export interface VirtualPage {
+  title: string,
+  id: string,
+  url: string,
+  layout: string,
 }
 
 /**
@@ -37,7 +61,7 @@ export interface Page {
   url: string;
 
   /** 替代 URL 列表（如日期路径、别名等），用于生成额外页面或重定向 */
-  aliases: string[];
+  aliases?: string[];
 
   /** 文章标题，取自 front-matter 或文件名 */
   title: string;
@@ -50,16 +74,16 @@ export interface Page {
   updated?: Date;
 
   /** 标签列表 */
-  tags: string[];
+  tags?: string[];
 
   /**
    * 分类列表（支持层级）：每个元素是一条从根到叶的完整路径，如 ["机器学习", "线性回归"]。
    * front-matter 写法见 parseCategories（字符串 / 数组 / 嵌套映射均支持）。
    */
-  categories: CategoryPath[];
+  categories?: CategoryPath[];
 
   /** 自定义 slug，用于生成 URL 的路径片段，默认取自文件名 */
-  slug: string;
+  slug?: string;
 
   /** 布局名称，用于模板选择 */
   layout: string;
@@ -88,5 +112,3 @@ export interface Page {
   /** 页面的其他元数据，由插件或核心动态添加 */
   metadata: Record<string, unknown>;
 }
-
-export type PagesIndex = Map<string, Page>;

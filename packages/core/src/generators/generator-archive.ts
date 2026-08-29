@@ -19,15 +19,15 @@ export default function (api: GeneratorAPI) {
     n: number,
   ) => string;
 
-  api.plugins.generators.register("archive", (site): Page[] => {
+  api.plugins.generators.register("archives", (site): Page[] => {
     const posts = (site.getCollection("posts")?.getPages(true) ?? []).filter(
       (p) => p.date,
     );
     if (posts.length === 0) return [];
-    const archiveDir = api.config.archiveDir ?? "archive";
+    const archivesDir = api.config.archivesDir ?? "archives";
     const format = api.config.paginationDir ?? "page";
     const perPage = api.config.perPage ?? 10;
-    const base = `/${archiveDir}/`;
+    const base = `/${archivesDir}/`;
     const pages: Page[] = [];
 
     // 年份分组（降序）
@@ -44,10 +44,10 @@ export default function (api: GeneratorAPI) {
       ...paginate(posts, {
         base,
         perPage,
-        layout: "archive",
+        layout: "archives",
         format,
         makePage: ({ posts, pagination }) => ({
-          id: `virtual:archive:${pagination.current}`,
+          id: `virtual:archives:${pagination.current}`,
           collection: "virtual",
           sourcePath: null,
           url: pageUrl(base, format, pagination.current),
@@ -55,8 +55,8 @@ export default function (api: GeneratorAPI) {
           title: "归档",
           tags: [],
           categories: [],
-          slug: "archive",
-          layout: "archive",
+          slug: "archives",
+          layout: "archives",
           draft: false,
           rawContent: "",
           content: "",
@@ -69,16 +69,16 @@ export default function (api: GeneratorAPI) {
     // 单年归档
     for (const year of years) {
       pages.push({
-        id: `virtual:archive:${year}`,
+        id: `virtual:archives:${year}`,
         collection: "virtual",
         sourcePath: null,
-        url: `/${archiveDir}/${year}/`,
+        url: `/${archivesDir}/${year}/`,
         aliases: [],
         title: `${year} 归档`,
         tags: [],
         categories: [],
         slug: `archive-${year}`,
-        layout: "archive",
+        layout: "archives",
         draft: false,
         rawContent: "",
         content: "",

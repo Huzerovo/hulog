@@ -21,9 +21,12 @@ import type { Asset } from "./types/asset.js";
 import type { Page } from "./types/page.js";
 import type { SiteConfig } from "./types/config.js";
 import type { GeneratorCallback } from "./types/generator.js";
-import type { FileEntry } from "./types/sequence.js";
+import type { FileEntry, RenderResult } from "./types/sequence.js";
 import { initCorePlugins, loadThemePlugins, loadSitePlugins } from './plugins.js';
 import seqRead from "./sequence/read.js";
+import { seqCollect } from "./sequence/collect.js";
+import { seqVirtual } from "./sequence/virtual.js";
+import { seqWrite } from "./sequence/write.js";
 
 /**
  * 构建管线：init → read → parse → filter → generate → process → render → write
@@ -54,8 +57,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const siteConfig = await loadSiteConfig(cwd);
 
   // ---- init ----
-  // NOTE 感觉 init 阶段的 hook 不是很有必要
-  // await hooks.beforeInit.call(siteConfig);
   const api = initCorePlugins(siteConfig, cwd);
   await loadThemePlugins(api, cwd, siteConfig.theme);
   await loadSitePlugins(api, cwd);
@@ -87,6 +88,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const assetsDirAbs = path.join(cwd, assetsDir);
 
   // ---- read ----
+  // 文件读取阶段，同时读取文章文件与资源文件
   // NOTE beforeRead 阶段的 hook 好像也有点意义不明
   await hooks.beforeRead.call();
   const files: FileEntry[] = seqRead(contentRoot, cwd);
@@ -94,23 +96,30 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Finished read");
 
   // ---- parse ----
-  // TODO 阶段拆分
+  // 物理页面生成阶段
   await hooks.beforeParse.call(files);
-  const collections = seqParse(siteConfig, contentRoot, files);
+  const physicsPage = seqParse(siteConfig, contentRoot, files);
+  await hooks.afterParse.call(physicsPage);
+  buildLog(`Finished parse, total physics pages: ${physicsPage.length}`);
+
+  // ---- virtual ----
+  // 虚拟页面生成阶段
+  // TODO 添加 hook
+  const virtualPages = seqVirtual(siteConfig);
+  // 只传递 virtual pages
+  await hooks.afterVirtual.call(virtualPages);
+  buildLog(`Finished virtual, total virtual pages: ${virtualPages.length}`);
+
+  // ---- colllect ----
+  // 集合生成阶段
+  const allPages = [...physicsPage, ...virtualPages];
+  const collections = seqCollect(siteConfig, allPages);
   for (const col of collections) {
     // NOTE 添加正式发布是否允许草稿
     if (!options.dev && col.config.isDrafts) continue;
     site.collections.set(col.name, col);
   };
-  await hooks.afterParse.call(collections);
-  buildLog("Finished parse");
-
-  // TODO 
-  // 考虑在这里添加一个 collect 阶段
-  // parse 返回 PagesIndex，这里根据 PagesIndex 生成 collections
-  // 生成 collections 之后经过 filter 阶段再写入 site
-
-
+  buildLog("Finished collect");
 
   // ---- filter ----
   // NOTE
@@ -131,7 +140,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- generate ----
   // NOTE 这里的 pages 可能在上一阶段剔除了草稿
-  const allPages = [...site.pages];
   await hooks.beforeGenerate.call(allPages);
   // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
   const callbacks: GeneratorCallback[] = [];
@@ -198,7 +206,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     postDirByPageId: scanned.postDirByPageId,
   };
   const styles = readThemeStyles(loadedTheme);
-  const results: { page: Page; html: string; }[] = [];
+  const results: RenderResult[] = [];
   for (const page of allPages) {
     await hooks.beforeRender.call(page);
     // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
@@ -206,6 +214,8 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
     const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
+    // NOTE
+    // 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，
     const mdResult = await renderer(page.rawContent, page, {
       config: siteConfig,
       resolve: resolveCtx,
@@ -224,22 +234,19 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   }
   buildLog("Finished render");
 
-  // ---- write ----
+  // 创建 dist 文件夹，此文件夹作为网站最终的 root
   const distDir = path.join(cwd, "dist");
   if (!options.dev) {
     fs.rmSync(distDir, { recursive: true, force: true });
   }
   fs.mkdirSync(distDir, { recursive: true });
+  // ---- write ----
   await hooks.beforeWrite.call(
     results.map((r) => r.page),
     assets,
   );
-  for (const { page, html } of results) {
-    writeUrl(distDir, page.url, html);
-  }
-  for (const asset of assets) {
-    writeUrl(distDir, asset.url, asset.buffer);
-  }
+
+  seqWrite(distDir, results, assets);
   // public/ 直接复制
   // NOTE
   // 与 assets 的定位有些冲突？比如完全可以有一个 siteRoot/public/assets 文件夹，这样配置 SiteConfig.assetsDir 的含义就有歧义了：
@@ -284,16 +291,6 @@ function resolveCover(page: Page, ctx: ResolveContext) {
   page.cover = Array.isArray(page.cover)
     ? page.cover.map(resolveOne)
     : resolveOne(page.cover);
-}
-
-function writeUrl(distDir: string, url: string, content: string | Buffer) {
-  const rel = url.replace(/^\/+/, "");
-  // 以 "/" 结尾的是页面 URL（写 index.html）；否则是资源文件路径（直接写）
-  const out = url.endsWith("/")
-    ? path.join(distDir, rel, "index.html")
-    : path.join(distDir, rel);
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, content);
 }
 
 function copyDir(src: string, dest: string) {

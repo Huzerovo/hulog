@@ -4,7 +4,7 @@ import type { AsyncHook, Hooks } from "./types/hook.js";
  * tapable 风格异步钩子：按注册顺序依次执行（串行 await）。
  */
 export class AsyncHookImpl<T extends unknown[]> implements AsyncHook<T> {
-  private taps: { name: string; fn: (...args: T) => void | Promise<void> }[] =
+  private taps: { name: string; fn: (...args: T) => void | Promise<void>; }[] =
     [];
 
   tap(name: string, fn: (...args: T) => void | Promise<void>): void {
@@ -20,12 +20,20 @@ export class AsyncHookImpl<T extends unknown[]> implements AsyncHook<T> {
 
 export function initHooks(): Hooks {
   return {
-    beforeInit: new AsyncHookImpl(),
+    // init
     afterInit: new AsyncHookImpl(),
+    // read
     beforeRead: new AsyncHookImpl(),
     afterRead: new AsyncHookImpl(),
+    // parse
     beforeParse: new AsyncHookImpl(),
     afterParse: new AsyncHookImpl(),
+    // virtual
+    afterVirtual: new AsyncHookImpl(),
+    // collect 考虑放到最后执行？
+    afterCollect: new AsyncHookImpl(),
+
+    // filter
     beforeFilter: new AsyncHookImpl(),
     afterFilter: new AsyncHookImpl(),
     beforeGenerate: new AsyncHookImpl(),

@@ -43,7 +43,7 @@ export default function (api: GeneratorAPI) {
     }
     const groups = new Map<string, CategoryGroup>();
     for (const p of posts) {
-      for (const path of p.categories) {
+      for (const path of p.categories ?? []) {
         for (let i = 1; i <= path.length; i++) {
           const prefix = path.slice(0, i);
           const key = JSON.stringify(prefix);
@@ -96,7 +96,7 @@ export default function (api: GeneratorAPI) {
     // 标签
     const tags = new Map<string, Page[]>();
     for (const p of posts) {
-      for (const t of p.tags) {
+      for (const t of p.tags ?? []) {
         if (!tags.has(t)) tags.set(t, []);
         tags.get(t)!.push(p);
       }

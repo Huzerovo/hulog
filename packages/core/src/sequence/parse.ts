@@ -1,11 +1,10 @@
 import fs from "node:fs";
 import matter from "gray-matter";
 import path from "node:path";
-import type { Collection, CollectionConfig } from "../types/collection.js";
-import type { Page, PagesIndex } from "../types/page.js";
+import type { CollectionConfig } from "../types/collection.js";
 import type { SiteConfig } from "../types/config.js";
-import { CollectionImpl } from "../site.js";
 import { FileEntry } from "../types/sequence.js";
+import { RESERVED_KEYS, type Page } from "../types/page.js";
 import { parseCategories } from "../category.js";
 import { parseSlugFromFilename, resolveUrl } from "../route.js";
 import { toPosixPath } from "../path.js";
@@ -30,23 +29,6 @@ function toStringArray(value: unknown): string[] {
   if (typeof value === "string") return value ? [value] : [];
   return [];
 }
-
-// front-matter 字段
-const RESERVED_KEYS = new Set([
-  "title",
-  "date",
-  "updated",
-  "tags",
-  "categories",
-  "slug",
-  "layout",
-  "draft",
-  "excerpt",
-  "link",
-  "cover",
-  "permalink",
-]);
-
 /**
  * 将单个 Markdown 文件解析为 Page
  */
@@ -142,37 +124,18 @@ export function parseFile(
   return page;
 }
 
-function buildCollections(
-  config: SiteConfig,
-  pageById: Map<string, Page>,
-): Collection[] {
-  const cols = config.collections.map((cfg) => {
-    const pages = [...pageById.values()].filter(
-      (p) => p.collection === cfg.name,
-    );
-    return new CollectionImpl(cfg.name, cfg, pages);
-  });
-
-  // 内置草稿区集合（production 下被 filter 阶段过滤）
-  // NOTE 考虑将草稿区集合名设置为可由配置定义
-  // const draftPages = [...pageById.values()].filter((p) => p.draft);
-  // if (draftPages.length > 0) {
-  //   cols.push(new CollectionImpl("drafts", DRAFTS_COLLECTION_CONFIG, draftPages));
-  // }
-  return cols;
-}
-
 /**
  * parse 阶段
  */
-export function seqParse(siteConfig: SiteConfig /* TODO 此参数需要移除 */, contentRoot: string, files: FileEntry[]): Collection[] {
+export function seqParse(siteConfig: SiteConfig /* TODO 此参数需要移除 */, contentRoot: string, files: FileEntry[]): Page[] {
   // NOTE
   // 如果想要支持更多的文件类型，比如 html，是不是应该使用 f.type = 'markdown' | 'assets' | 'html' 的方式？
   // 在之后的 render 阶段还可以使用类似 `seqRender(pages, type)` 的方式分类渲染
   // 且注册 render 也可以使用类似 `renderer.registry(type, callback)` 的方式添加额外支持
   // 整合之后还可以考虑使用 `const {pages, assets, unknow} = seqParse(files)` 的方式获取结果
   const mdFiles = files.filter((f) => !f.isAsset);
-  const pageById: PagesIndex = new Map<string, Page>();
+  // const pageById: PagesIndex = new Map<string, Page>();
+  const pages: Page[] = [];
   // NOTE
   // siteConfig 在 loadSiteConfig 会有默认值，这里这样写会导致太多地方硬编码 "content"
   for (const f of mdFiles) {
@@ -200,9 +163,13 @@ export function seqParse(siteConfig: SiteConfig /* TODO 此参数需要移除 */
       throw new Error(`目录 "${collectionName}" 未配置集合（config.collections 中缺少 sourceDir: "${collectionName}"）\nPath: ${rel}`);
     }
     const page = parseFile(f.absolutePath, rel, collectionConfig);
-    pageById.set(page.id, page);
+    pages.push(page);
+    // pageById.set(page.id, page);
   }
-  const collections: Collection[] = buildCollections(siteConfig, pageById);
 
-  return collections;
+  return pages;
+
+  // const collections: Collection[] = buildCollections(siteConfig, pageById);
+
+  // return collections;
 }

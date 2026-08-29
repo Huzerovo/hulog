@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "./collection.js";
+import { VirtualPage } from "./page.js";
 
 /**
  * 站点配置
@@ -61,6 +62,9 @@ export interface SiteConfig {
   /** 集合配置 */
   collections: CollectionConfig[];
 
+  // 虚拟页面
+  virtualPages: VirtualPage[];
+
   markdown?: MarkdownConfig;
 
   server?: ServerConfig;
@@ -69,7 +73,7 @@ export interface SiteConfig {
   perPage?: number;
 
   /** 归档目录名，默认 "archive" */
-  archiveDir?: string;
+  archivesDir?: string;
 
   /** 分页目录名，默认 "page" */
   paginationDir?: string;
