@@ -14,6 +14,9 @@ export interface Site {
   /** 全部页面（所有集合的扁平数组） */
   get pages(): Page[];
 
+  // 获取全部文章
+  get posts(): Page[];
+
   /** 全部已发布页面（过滤 draft） */
   get publishedPages(): Page[];
 

@@ -20,6 +20,24 @@ export class SiteImpl implements Site {
     return [...this.collections.values()].flatMap((c) => c.pages);
   }
 
+  // 获取所有文章，若 renderDraft 为 true，则包含 drafts
+  get posts(): Page[] {
+    const published = this.collections.get("posts")?.getPages(true) ?? [];
+    const drafts = this.collections.get("drafts")?.getPages(true) ?? [];
+
+    if (this._config?.renderDraft) {
+      // 默认按日期降序排序
+      return [...published, ...drafts].sort((a, b) => {
+        const da = a.date?.getTime() ?? 0;
+        const db = b.date?.getTime() ?? 0;
+        return db - da;
+      });
+    } else {
+      return published;
+    }
+
+  }
+
   get publishedPages(): Page[] {
     return this.pages.filter((p) => !p.draft);
   }

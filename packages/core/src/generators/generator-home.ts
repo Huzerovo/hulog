@@ -19,20 +19,8 @@ export default function(api: GeneratorAPI) {
   ) => string;
   const pinSort = helper.get("pinSort") as (posts: Page[]) => Page[];
 
-  const sortPages = helper.get("sortPages") as (pages: Page[], by: string, order: string) => Page[];
-
   api.plugins.generators.register("core:home", (site): Page[] => {
-    const allPosts = site.collections.get("posts")?.getPages(true) ?? [];
-
-    if (site.config.renderDraft) {
-      site.collections.get("drafts")?.getPages(true).forEach((p) => {
-        allPosts.push(p);
-      });
-    }
-
-    const posts = sortPages(allPosts, "date", "desc");
-    // const posts = allPosts;
-
+    const posts = site.posts;
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
     const format = api.config.paginationDir ?? "page";
