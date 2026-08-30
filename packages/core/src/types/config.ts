@@ -62,9 +62,10 @@ export interface SiteConfig {
   /** 集合配置 */
   collections: CollectionConfig[];
 
-  // 虚拟页面
-
   markdown?: MarkdownConfig;
+
+  // 是否显示草稿
+  renderDraft?: boolean;
 
   server?: ServerConfig;
 

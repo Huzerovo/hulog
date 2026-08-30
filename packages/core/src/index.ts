@@ -30,7 +30,8 @@ export { loadSiteConfig } from "./config.js";
 export { loadTheme, renderPage, resolveThemeDir } from "./theme.js";
 export { renderMarkdown } from "./markdown.js";
 export { AsyncHookImpl, initHooks } from "./hook.js";
-export { SiteImpl, CollectionImpl } from "./site.js";
+export { SiteImpl } from "./site.js";
+export { CollectionImpl } from "./collection.js";
 export { RendererRegistryImpl } from "./renderer.js";
 export { GeneratorRegistryImpl } from "./generator.js";
 export {

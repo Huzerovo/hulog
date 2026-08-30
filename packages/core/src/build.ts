@@ -54,6 +54,10 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // TODO 写一个 test 用于验证
   const siteConfig = await loadSiteConfig(cwd);
 
+  if (options.dev) {
+    siteConfig.renderDraft = true;
+  }
+
   // ---- init ----
   const api = initCorePlugins(siteConfig, cwd);
   await loadThemePlugins(api, cwd, siteConfig.theme);
@@ -99,7 +103,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- filter ----
   const filteredPages: Page[] = [];
-  if (options.dev) {
+  if (siteConfig.renderDraft) {
     filteredPages.push(...physicsPage);
   } else {
     filteredPages.push(...physicsPage.filter((page) => !page.draft));

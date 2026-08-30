@@ -1,4 +1,4 @@
-import { CollectionImpl } from "../site.js";
+import { CollectionImpl } from "../collection.js";
 import type { Collection } from "../types/collection.js";
 import type { SiteConfig } from "../types/config.js";
 import type { Page } from "../types/page.js";

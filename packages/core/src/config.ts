@@ -57,6 +57,7 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
     pluginsDir: "plugins",
     language: "zh-CN",
     perPage: 10,
+    renderDraft: false,
     archivesDir: ARCHIVES_BASE,
     paginationDir: "page",
   };

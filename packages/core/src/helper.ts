@@ -6,7 +6,7 @@ import {
 } from "./category.js";
 import { pageUrl, paginate, pinSort } from "./pagination.js";
 import type { HelperRegistry } from "./types/helper.js";
-import type { PageBase } from "./types/page.js";
+import type { Page, PageBase } from "./types/page.js";
 import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
 
 /**
@@ -118,5 +118,22 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
       data: {},
       metadata: {},
     };
+  });
+
+  registry.register("sortPages", (pages: Page[], by: "title" | "date", order: "asc" | "desc") => {
+    const d = order === "asc" ? 1 : -1;
+    return pages.sort((a, b) => {
+      switch (by) {
+        case "title":
+          return a.title.localeCompare(b.title) * d;
+        case "date":
+        default: {
+          const da = a.date?.getTime() ?? 0;
+          const db = b.date?.getTime() ?? 0;
+          return (da - db) * d;
+        }
+      }
+
+    });
   });
 }
