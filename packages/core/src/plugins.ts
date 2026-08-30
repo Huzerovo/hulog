@@ -56,7 +56,8 @@ export function initCorePlugins(config: SiteConfig, cwd: string): PluginAPI {
     },
   };
 
-  // 内置 generator（home / archive / taxonomy）：注册后站点/主题插件可同名覆盖
+  // 内置 generator（core:home / core:archives / core:taxonomy）：以 core: 前缀命名，
+  // 与站点/主题插件（如 "home"）区分；同名 register 仍会覆盖（Map set 语义）
   registerCoreGenerators(api);
 
   return api;

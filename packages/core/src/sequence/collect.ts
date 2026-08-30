@@ -3,28 +3,47 @@ import type { Collection } from "../types/collection.js";
 import type { SiteConfig } from "../types/config.js";
 import type { Page } from "../types/page.js";
 
-function buildCollections(
-  config: SiteConfig,
-  pages: Page[],
-): Collection[] {
-  const cols = config.collections.map((cfg) => {
-    const cPages = pages.filter(
-      (p) => p.collection === cfg.name,
-    );
-    return new CollectionImpl(cfg.name, cfg, cPages);
-  });
-
-  // 内置草稿区集合（production 下被 filter 阶段过滤）
-  // NOTE 考虑将草稿区集合名设置为可由配置定义
-  // const draftPages = [...pageById.values()].filter((p) => p.draft);
-  // if (draftPages.length > 0) {
-  //   cols.push(new CollectionImpl("drafts", DRAFTS_COLLECTION_CONFIG, draftPages));
-  // }
-  return cols;
+/**
+ * collect①（物理）：在 filter 之后运行，将物理页面按 collection 分组生成集合。
+ * 只创建配置声明的集合（物理页必然属于配置集合），按配置声明顺序返回。
+ */
+export function seqCollect(config: SiteConfig, pages: Page[]): Collection[] {
+  const collections = new Map<string, Collection>();
+  for (const cfg of config.collections) {
+    collections.set(cfg.name, new CollectionImpl(cfg.name, cfg, []));
+  }
+  for (const page of pages) {
+    const col = collections.get(page.collection);
+    if (col) col.pages.push(page);
+  }
+  return [...collections.values()];
 }
 
-
-export function seqCollect(config: SiteConfig, pages: Page[]): Collection[] {
-
-  return buildCollections(config, pages);
+/**
+ * collect②（虚拟）：在 generate 之后运行，将虚拟页面挂入 site.collections。
+ * 虚拟页 collection 已存在（如某 generator 产出 "posts"）则并入，否则动态创建（如 core:virtual）。
+ * 返回受影响（含新建）的集合。
+ */
+export function collectVirtual(
+  collections: Map<string, Collection>,
+  pages: Page[],
+): Collection[] {
+  const touched: Collection[] = [];
+  const seen = new Set<string>();
+  for (const page of pages) {
+    let col = collections.get(page.collection);
+    if (!col) {
+      col = new CollectionImpl(page.collection, {
+        name: page.collection,
+        sourceDir: "",
+      });
+      collections.set(page.collection, col);
+    }
+    col.pages.push(page);
+    if (!seen.has(page.collection)) {
+      seen.add(page.collection);
+      touched.push(col);
+    }
+  }
+  return touched;
 }

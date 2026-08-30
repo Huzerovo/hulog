@@ -62,10 +62,21 @@ test("内置 generator 生成 virtual 页面（site 有 posts 时）", async () 
     data: {},
     metadata: {},
   });
-  const pages = [mkPage("a"), mkPage("b")];
+  const site = {
+    collections: new Map([
+      [
+        "posts",
+        {
+          name: "posts",
+          config: { sortBy: "date" },
+          getPages: () => [mkPage("a"), mkPage("b")],
+        },
+      ],
+    ]),
+  } as any;
 
   const home = api.plugins.generators.get("core:home")!;
-  const homePages = await home(pages);
+  const homePages = await home(site);
   assert.ok(homePages.length >= 1);
   assert.ok(homePages.every((p) => p.collection === "core:virtual"));
 });

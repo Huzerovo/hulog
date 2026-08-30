@@ -26,7 +26,7 @@ import type { GeneratorCallback } from "./types/generator.js";
 import type { FileEntry, RenderResult } from "./types/sequence.js";
 import { initCorePlugins, loadThemePlugins, loadSitePlugins } from './plugins.js';
 import seqRead from "./sequence/read.js";
-import { seqCollect } from "./sequence/collect.js";
+import { seqCollect, collectVirtual } from "./sequence/collect.js";
 import { seqWrite } from "./sequence/write.js";
 
 export interface BuildOptions {
@@ -107,13 +107,23 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterFilter.call(filteredPages);
   buildLog("Finished filter");
 
+  // ---- collect①（物理）----
+  // 将物理页面按 collection 分组，集合供 generate 阶段（site.collections）与后续使用
+  const physicalCollections = seqCollect(siteConfig, filteredPages);
+  for (const col of physicalCollections) {
+    site.collections.set(col.name, col);
+  }
+  await hooks.afterCollectPhysical.call(physicalCollections);
+  buildLog("Finished collect(physical)");
+
   // ---- generate ----
+  // 基于物理集合生成虚拟页面（archives / tagcloud 等）；虚拟页不依赖虚拟集合
   const virtualPages: Page[] = [];
   // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
   const callbacks: GeneratorCallback[] = [];
   generators.forEach((fn) => callbacks.push(fn));
   for (const fn of callbacks) {
-    const vPages = await fn(filteredPages);
+    const vPages = await fn(site);
     for (const v of vPages) {
       if (v.collection === VIRTUAL_PAGE_COLLECTION && !v.url.endsWith('/')) {
         v.url += '/';
@@ -131,14 +141,11 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterMerge.call(allPages);
   buildLog(`Finished merge, all pages: ${allPages.length}`);
 
-  // ---- colllect ----
-  // 集合生成阶段
-  const collections = seqCollect(siteConfig, filteredPages);
-  for (const col of collections) {
-    site.collections.set(col.name, col);
-  };
-  await hooks.afterCollect.call(collections);
-  buildLog("Finished collect");
+  // ---- collect②（虚拟）----
+  // 将虚拟页挂入 site.collections（已存在则并入，否则动态创建如 core:virtual）
+  const virtualCollections = collectVirtual(site.collections, virtualPages);
+  await hooks.afterCollectVirtual.call(virtualCollections);
+  buildLog("Finished collect(virtual)");
 
   // ---- process ----
   const scanned = scanAssets({ contentRoot, assetsDirAbs, pages: allPages });

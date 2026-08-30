@@ -19,8 +19,8 @@ export default function(api: GeneratorAPI) {
   ) => string;
   const pinSort = helper.get("pinSort") as (posts: Page[]) => Page[];
 
-  api.plugins.generators.register("core:home", (sitePages): Page[] => {
-    const posts = sitePages.filter((p) => p.collection === "posts");
+  api.plugins.generators.register("core:home", (site): Page[] => {
+    const posts = site.collections.get("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
     const format = api.config.paginationDir ?? "page";

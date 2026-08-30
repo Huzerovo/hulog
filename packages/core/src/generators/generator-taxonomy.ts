@@ -28,8 +28,8 @@ export default function(api: GeneratorAPI) {
     path: CategoryPath,
   ) => string;
 
-  api.plugins.generators.register("core:taxonomy", (sitePages): Page[] => {
-    const posts = sitePages.filter((p) => p.collection === "posts");
+  api.plugins.generators.register("core:taxonomy", (site): Page[] => {
+    const posts = site.collections.get("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
     const format = api.config.paginationDir ?? "page";

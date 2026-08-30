@@ -20,9 +20,9 @@ export default function(api: GeneratorAPI) {
     n: number,
   ) => string;
 
-  api.plugins.generators.register("core:archives", (sitePages): Page[] => {
-    const posts = sitePages.filter(
-      (p) => p.collection === "posts" && p.date,
+  api.plugins.generators.register("core:archives", (site): Page[] => {
+    const posts = (site.collections.get("posts")?.getPages(true) ?? []).filter(
+      (p) => p.date,
     );
     if (posts.length === 0) return [];
     const archivesDir = api.config.archivesDir ?? ARCHIVES_BASE;

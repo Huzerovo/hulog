@@ -22,12 +22,14 @@ export interface Hooks {
   afterParse: AsyncHook<[Page[]]>; // 集合视角；全局数组视角在 afterFilter 后经 site.pages 获取
   // filter
   afterFilter: AsyncHook<[Page[]]>;
+  // collect①（物理）
+  afterCollectPhysical: AsyncHook<[Collection[]]>;
   // generate
   afterGenerate: AsyncHook<[Page[]]>;
   // merge
   afterMerge: AsyncHook<[Page[]]>;
-  // collect
-  afterCollect: AsyncHook<[Collection[]]>;
+  // collect②（虚拟）
+  afterCollectVirtual: AsyncHook<[Collection[]]>;
   // process
   afterProcess: AsyncHook<[Asset[]]>;
   // render

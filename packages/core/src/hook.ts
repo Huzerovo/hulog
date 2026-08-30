@@ -28,12 +28,14 @@ export function initHooks(): Hooks {
     afterParse: new AsyncHookImpl(),
     // filter
     afterFilter: new AsyncHookImpl(),
+    // collect①（物理）
+    afterCollectPhysical: new AsyncHookImpl(),
     // generate
     afterGenerate: new AsyncHookImpl(),
     // merge
     afterMerge: new AsyncHookImpl(),
-    // collect
-    afterCollect: new AsyncHookImpl(),
+    // collect②（虚拟）
+    afterCollectVirtual: new AsyncHookImpl(),
     // process
     afterProcess: new AsyncHookImpl(),
     // render

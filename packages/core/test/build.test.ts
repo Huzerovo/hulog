@@ -72,7 +72,7 @@ function scaffoldSite(): string {
   return root;
 }
 
-test("生产构建：草稿不进入构建，虚拟页渲染到 dist", async () => {
+test("生产构建：草稿不进入构建，虚拟页进入 site.pages 并渲染到 dist", async () => {
   const root = scaffoldSite();
   const result = await build({ cwd: root });
 
@@ -81,9 +81,14 @@ test("生产构建：草稿不进入构建，虚拟页渲染到 dist", async () 
   assert.ok(!urls.some((u) => u.startsWith("/draft/")), `不应包含草稿: ${urls}`);
   assert.ok(urls.includes("/post/a/"));
 
-  // 虚拟页 url 被规整为 "/" 结尾并渲染输出 index.html
+  // 虚拟页 url 被规整为 "/" 结尾，进入 site.collections / site.pages
   const v = result.pages.find((r) => r.page.id === "virtual:test");
   assert.ok(v, "站点插件生成的虚拟页应进入构建结果");
   assert.equal(v!.page.url, "/virtual/test/");
+  const siteV = result.site.pages.find((p) => p.id === "virtual:test");
+  assert.ok(siteV, "虚拟页应进入 site.pages（经 collect 分组）");
+  assert.equal(siteV!.url, "/virtual/test/");
+  assert.ok(result.site.collections.has("core:virtual"));
+  // 输出为 index.html
   assert.ok(fs.existsSync(path.join(root, "dist", "virtual", "test", "index.html")));
 });
