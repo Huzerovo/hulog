@@ -33,9 +33,6 @@ export default {
     port: 3000,
     hot: true,
   },
-  cli: {
-    newPostDraft: true,
-  },
 };
 `;
 

@@ -1,7 +1,7 @@
 import { CollectionImpl } from "../site.js";
-import { Collection } from "../types/collection.js";
-import { SiteConfig } from "../types/config.js";
-import { Page } from "../types/page.js";
+import type { Collection } from "../types/collection.js";
+import type { SiteConfig } from "../types/config.js";
+import type { Page } from "../types/page.js";
 
 function buildCollections(
   config: SiteConfig,

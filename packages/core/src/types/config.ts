@@ -7,6 +7,7 @@ import type { CollectionConfig } from "./collection.js";
 export const THEME_BASE = "themes";
 export const PLUGINS_BASE = "plugins";
 export const CONTENT_BASE = "content";
+export const ARCHIVES_BASE = "archives";
 
 export interface MarkdownConfig {
   /** 是否启用代码高亮（rehype-shiki），默认 true */

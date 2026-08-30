@@ -6,7 +6,7 @@ import type { GeneratorAPI } from "../plugins.js";
  * 首页生成器：posts 集合按 perPage 分页（layout: index）。
  * 第 1 页 /，第 N 页 /page/N/（站点级分页）。
  */
-export default function (api: GeneratorAPI) {
+export default function(api: GeneratorAPI) {
   const helper = api.plugins.helpers;
   const paginate = helper.get("paginate") as (
     posts: Page[],
@@ -19,8 +19,8 @@ export default function (api: GeneratorAPI) {
   ) => string;
   const pinSort = helper.get("pinSort") as (posts: Page[]) => Page[];
 
-  api.plugins.generators.register("core:home", (site): Page[] => {
-    const posts = site.getCollection("posts")?.getPages(true) ?? [];
+  api.plugins.generators.register("core:home", (sitePages): Page[] => {
+    const posts = sitePages.filter((p) => p.collection === "posts");
     if (posts.length === 0) return [];
     const perPage = api.config.perPage ?? 10;
     const format = api.config.paginationDir ?? "page";

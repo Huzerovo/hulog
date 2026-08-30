@@ -1,7 +1,7 @@
 import type { Collection } from "./collection.js";
 import type { Page } from "./page.js";
 import type { Asset } from "./asset.js";
-import { SiteConfig } from "./config.js";
+import type { SiteConfig } from "./config.js";
 
 /**
  * Site —— 全局站点对象
@@ -10,9 +10,6 @@ import { SiteConfig } from "./config.js";
 export interface Site {
   /** 全部集合，按名称索引 */
   collections: Map<string, Collection>;
-
-  /** 获取单个集合 */
-  getCollection(name: string): Collection;
 
   /** 全部页面（所有集合的扁平数组） */
   get pages(): Page[];

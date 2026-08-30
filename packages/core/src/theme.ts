@@ -104,8 +104,9 @@ export async function loadTheme(
       ".ttf": "file",
     },
     alias: PREACT_EXTERNALS,
-    // preact 系列必须 external：与核心进程共享同一实例（context 单实例）
-    external: [...Object.values(PREACT_EXTERNALS)],
+    // preact 系列与 @hulog/core 必须 external：与核心进程共享同一实例
+    // （preact 共享 context 单实例；core 供主题导入常量/工具）
+    external: ["@hulog/core", ...Object.values(PREACT_EXTERNALS)],
     logLevel: "silent",
   });
 

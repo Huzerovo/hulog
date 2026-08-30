@@ -1,8 +1,8 @@
-import { Asset } from "./asset.js";
-import { Collection } from "./collection.js";
-import { Page } from "./page.js";
-import { FileEntry } from "./sequence.js";
-import { Site } from "./site.js";
+import type { Asset } from "./asset.js";
+import type { Collection } from "./collection.js";
+import type { Page } from "./page.js";
+import type { FileEntry } from "./sequence.js";
+import type { Site } from "./site.js";
 
 /** tapable 风格异步钩子 */
 export interface AsyncHook<T extends unknown[]> {

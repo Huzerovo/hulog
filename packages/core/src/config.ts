@@ -1,7 +1,7 @@
 import { cosmiconfig } from "cosmiconfig";
 import { createJiti } from "jiti";
 import type { SiteConfig } from "./types/config.js";
-import { CONTENT_BASE } from "./types/config.js";
+import { CONTENT_BASE, ARCHIVES_BASE } from "./types/config.js";
 
 const MODULE_NAME = "blog";
 
@@ -57,7 +57,7 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
     pluginsDir: "plugins",
     language: "zh-CN",
     perPage: 10,
-    archivesDir: "archive",
+    archivesDir: ARCHIVES_BASE,
     paginationDir: "page",
   };
 

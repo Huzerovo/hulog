@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import less from "less";
 import { loadSiteConfig, loadThemeConfig } from "./config.js";
-import { SiteImpl, CollectionImpl } from "./site.js";
+import { SiteImpl } from "./site.js";
 import { seqParse } from "./sequence/parse.js";
 import {
   loadTheme,
@@ -108,39 +108,26 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Finished filter");
 
   // ---- generate ----
-  // NOTE 这里的 pages 可能在上一阶段剔除了草稿
   const virtualPages: Page[] = [];
   // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
   const callbacks: GeneratorCallback[] = [];
   generators.forEach((fn) => callbacks.push(fn));
   for (const fn of callbacks) {
-    const virtuals = await fn(site);
-    for (const v of virtuals) {
-      // 虚拟页 URL 规整：统一以 "/" 结尾（作为 HTML 页面输出 index.html），
-      // 提前到 generate 阶段处理，使 checkUrlConflicts 能发现真实冲突
-      if (v.collection === VIRTUAL_PAGE_COLLECTION && !v.url.endsWith("/")) {
-        v.url += "/";
+    const vPages = await fn(filteredPages);
+    for (const v of vPages) {
+      if (v.collection === VIRTUAL_PAGE_COLLECTION && !v.url.endsWith('/')) {
+        v.url += '/';
       }
       virtualPages.push(v);
-      // 挂载虚拟页面到对应集合（不存在则创建，保证 site.pages 可枚举虚拟页）
-      let col = site.collections.get(v.collection);
-      if (!col) {
-        col = new CollectionImpl(v.collection, {
-          name: v.collection,
-          sourceDir: "",
-        });
-        site.collections.set(v.collection, col);
-      }
-      col.pages.push(v);
     }
   }
-  checkUrlConflicts(virtualPages);
   await hooks.afterGenerate.call(virtualPages);
   buildLog("Finished generate");
 
   // ---- merge ----
-  // 合并所有页面（已过滤草稿，非 dev 下草稿不进入构建）
-  const allPages: Page[] = [...filteredPages];
+  // 合并所有页面（物理页已过滤草稿，虚拟页来自 generate）
+  const allPages: Page[] = [...filteredPages, ...virtualPages];
+  checkUrlConflicts(allPages);
   await hooks.afterMerge.call(allPages);
   buildLog(`Finished merge, all pages: ${allPages.length}`);
 

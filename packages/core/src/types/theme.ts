@@ -2,7 +2,7 @@ import type { ComponentType } from "preact";
 import type { Site } from "./site.js";
 import type { Page } from "./page.js";
 import type { SiteConfig } from "./config.js";
-import { PluginAPI } from "../plugins.js";
+import type { PluginAPI } from "../plugins.js";
 
 /**
  * 主题系统

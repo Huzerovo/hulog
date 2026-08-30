@@ -1,4 +1,4 @@
-import { Page } from "./page.js";
+import type { Page } from "./page.js";
 
 /** 源文件条目（read 阶段产物） */
 export interface FileEntry {

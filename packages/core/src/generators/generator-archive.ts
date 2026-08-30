@@ -1,13 +1,14 @@
 import { VIRTUAL_PAGE_COLLECTION, type Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
 import type { GeneratorAPI } from "../plugins.js";
+import { ARCHIVES_BASE } from "../types/config.js";
 
 /**
  * 归档生成器（参考 huzerovo scripts/generator/archive_page.js）：
- * - /archive/            全部文章按年份分组（layout: archive），含分页
- * - /archive/<year>/     单年归档（layout: archive）
+ * - /archives/            全部文章按年份分组（layout: archives），含分页
+ * - /archives/<year>/     单年归档（layout: archives）
  */
-export default function (api: GeneratorAPI) {
+export default function(api: GeneratorAPI) {
   const helper = api.plugins.helpers;
   const paginate = helper.get("paginate") as (
     posts: Page[],
@@ -19,12 +20,12 @@ export default function (api: GeneratorAPI) {
     n: number,
   ) => string;
 
-  api.plugins.generators.register("core:archives", (site): Page[] => {
-    const posts = (site.getCollection("posts")?.getPages(true) ?? []).filter(
-      (p) => p.date,
+  api.plugins.generators.register("core:archives", (sitePages): Page[] => {
+    const posts = sitePages.filter(
+      (p) => p.collection === "posts" && p.date,
     );
     if (posts.length === 0) return [];
-    const archivesDir = api.config.archivesDir ?? "archives";
+    const archivesDir = api.config.archivesDir ?? ARCHIVES_BASE;
     const format = api.config.paginationDir ?? "page";
     const perPage = api.config.perPage ?? 10;
     const base = `/${archivesDir}/`;

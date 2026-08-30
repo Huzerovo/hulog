@@ -5,8 +5,9 @@ import {
   parseCategories,
 } from "./category.js";
 import { pageUrl, paginate, pinSort } from "./pagination.js";
-import { HelperRegistry } from "./types/helper.js";
-import { Page, PageBase, VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
+import type { HelperRegistry } from "./types/helper.js";
+import type { PageBase } from "./types/page.js";
+import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
 
 /**
  * 核心内置 helper 注册（每次构建独立注册表）。

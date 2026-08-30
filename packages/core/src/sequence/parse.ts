@@ -3,7 +3,7 @@ import matter from "gray-matter";
 import path from "node:path";
 import type { CollectionConfig } from "../types/collection.js";
 import type { SiteConfig } from "../types/config.js";
-import { FileEntry } from "../types/sequence.js";
+import type { FileEntry } from "../types/sequence.js";
 import { RESERVED_KEYS, type Page } from "../types/page.js";
 import { parseCategories } from "../category.js";
 import { parseSlugFromFilename, resolveUrl } from "../route.js";
