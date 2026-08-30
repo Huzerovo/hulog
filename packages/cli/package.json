@@ -23,7 +23,7 @@
     "dev": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
-    "@hulog/core": "workspace:*",
+    "@hulog/core": "0.1.0",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
     "gray-matter": "^4.0.3",
