@@ -1,0 +1,37 @@
+{
+  "name": "@hulog/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "生成器 CLI：init/dev/build/clean/new（开发服务器与热重载）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "hulog": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node16 --outfile=dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@hulog/core": "*",
+    "chokidar": "^5.0.0",
+    "commander": "^15.0.0",
+    "gray-matter": "^4.0.3",
+    "ws": "^8.21.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.1"
+  }
+}
