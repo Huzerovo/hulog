@@ -130,8 +130,8 @@ export function parseFile(
 /**
  * parse 阶段
  */
-export function seqParse(siteConfig: SiteConfig /* TODO 此参数需要移除 */, contentRoot: string, files: FileEntry[]): Page[] {
-  // NOTE
+export function seqParse(siteConfig: SiteConfig /* TODO: 此参数需要移除 */, contentRoot: string, files: FileEntry[]): Page[] {
+  // NOTE: 支持更多的文件类型，这里需要修改
   // 如果想要支持更多的文件类型，比如 html，是不是应该使用 f.type = 'markdown' | 'assets' | 'html' 的方式？
   // 在之后的 render 阶段还可以使用类似 `seqRender(pages, type)` 的方式分类渲染
   // 且注册 render 也可以使用类似 `renderer.registry(type, callback)` 的方式添加额外支持
@@ -146,7 +146,7 @@ export function seqParse(siteConfig: SiteConfig /* TODO 此参数需要移除 */
       (c) => c.sourceDir === collectionName,
     );
     if (!collectionConfig) {
-      // TODO 更改为警告，而非抛出错误
+      // TODO: 更改为警告，而非抛出错误
       throw new Error(`目录 "${collectionName}" 未配置集合（config.collections 中缺少 sourceDir: "${collectionName}"）\nPath: ${rel}`);
     }
     const page = parseFile(f.absolutePath, rel, collectionConfig);

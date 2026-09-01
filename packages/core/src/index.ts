@@ -1,5 +1,4 @@
-// TODO
-// 检查 export 的必要性，将不需要 export 的剔除
+// TODO: 检查 export 的必要性，将不需要 export 的剔除
 // 需要 export 的有：
 // 1. plugins 相关：
 //   - helper 提供访问 posts 以及 page 相关资源的能力

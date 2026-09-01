@@ -5,7 +5,7 @@ import type { Renderer, RendererRegistry } from "./types/renderer.js";
  * 内置默认 renderer（renderMarkdown）在 build 开头注册；
  * 用户 renderer 经 `register` 覆盖之（单一活动渲染器，后注册者胜出）。
  */
-// FIXME 将这个改造成多渲染器，active改为 []，get 添加 name 参数
+// FIXME: 将这个改造成多渲染器，active改为 []，get 添加 name 参数
 export class RendererRegistryImpl implements RendererRegistry {
   private active = new Map<string, Renderer>();
 

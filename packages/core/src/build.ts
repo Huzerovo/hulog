@@ -45,13 +45,11 @@ export interface BuildResult {
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // 考虑创建一个 utils.logger ？
   const buildLog = (msg: string) => console.log("  [build]: " + msg);
-  // NOTE
-  // 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写
-  // 另外 CLI build 命令暂时没有添加参数改写的功能，已做标记，记得添加
+  // NOTE: 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写，另外 CLI build 命令暂时没有添加参数改写的功能，已做标记，记得添加
   const cwd = path.resolve(options.cwd ?? process.cwd());
 
-  // NOTE siteConfig 在 loadSiteConfig 应该被完全赋值
-  // TODO 写一个 test 用于验证
+  // NOTE: siteConfig 在 loadSiteConfig 应该被完全赋值
+  // TODO: 写一个 test 用于验证
   const siteConfig = await loadSiteConfig(cwd);
 
   if (options.dev) {
@@ -81,7 +79,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const mergedThemeConfig: Record<string, unknown> = {
     ...(loadedTheme.theme.config ?? {}),
     ...(themeConfig ?? {}),
-    ...(siteConfig.themeConfig ?? {}), // TODO 移除这个字段，site 和 theme 的配置分离
+    ...(siteConfig.themeConfig ?? {}), // TODO: 移除这个字段，site 和 theme 的配置分离
   };
   siteConfig.themeConfig = mergedThemeConfig;
 
@@ -207,8 +205,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
     const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
-    // NOTE
-    // 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，
+    // NOTE: 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，
     const mdResult = await renderer(page.rawContent, page, {
       config: siteConfig,
       resolve: resolveCtx,
@@ -241,8 +238,8 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   seqWrite(distDir, results, assets);
   // public/ 直接复制
-  // NOTE
-  // 与 assets 的定位有些冲突？比如完全可以有一个 siteRoot/public/assets 文件夹，这样配置 SiteConfig.assetsDir 的含义就有歧义了：
+  // NOTE: 与 assets 的定位有些冲突？
+  // 比如完全可以有一个 siteRoot/public/assets 文件夹，这样配置 SiteConfig.assetsDir 的含义就有歧义了：
   // assetsDir 既可以代表 public 下的文件夹名称，也可以表示 siteRoot 下的文件夹名称
   // 且由于这个是最后的阶段了，public 中的 assets 优先级极高，可能会破坏之前配置好的 assets URL
   const publicDir = path.join(cwd, "public");
