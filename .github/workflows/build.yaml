@@ -33,11 +33,20 @@ jobs:
       - name: Build packages
         run: pnpm run build
 
+      - name: Prepare deploy files
+        run: |
+          mkdir -p dist-core
+          cp -r ./packages/core/dist dist-core/
+          cp ./packages/core/package.json dist-core/
+          mkdir -p dist-cli
+          cp -r ./packages/cli/dist dist-cli/
+          cp ./packages/cli/package.json dist-cli/
+
       - name: Deploy @hulog/core branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./packages/core/dist
+          publish_dir: ./dist-core
           publish_branch: dist-core
           force_orphan: true
 
@@ -45,6 +54,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./packages/cli/dist
+          publish_dir: ./dist-cli
           publish_branch: dist-cli
           force_orphan: true
