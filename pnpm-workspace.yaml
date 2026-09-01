@@ -1,0 +1,10 @@
+allowBuilds:
+  esbuild: true
+
+packages:
+  - "packages/*"
+  - "example"
+  - "example/themes/default"
+
+overrides:
+  "@hulog/core": "workspace:*"

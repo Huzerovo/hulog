@@ -16,7 +16,6 @@ design-doc.md
 *.orig.backup
 
 pnpm-lock.yaml
-pnpm-workspace.yaml
 
 docs/
 
