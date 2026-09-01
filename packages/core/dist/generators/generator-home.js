@@ -8,15 +8,7 @@ export default function (api) {
     const paginate = helper.get("paginate");
     const pageUrl = helper.get("pageUrl");
     const pinSort = helper.get("pinSort");
-    const sortPages = helper.get("sortPages");
     api.plugins.generators.register("core:home", (site) => {
-        const allPosts = site.collections.get("posts")?.getPages(true) ?? [];
-        if (site.config.renderDraft) {
-            site.collections.get("drafts")?.getPages(true).forEach((p) => {
-                allPosts.push(p);
-            });
-        }
-        // const posts = sortPages(allPosts, "date", "desc");
         const posts = site.posts;
         if (posts.length === 0)
             return [];

@@ -11,6 +11,7 @@ export class SiteImpl {
     get pages() {
         return [...this.collections.values()].flatMap((c) => c.pages);
     }
+    // 获取所有文章，若 renderDraft 为 true，则包含 drafts
     get posts() {
         const published = this.collections.get("posts")?.getPages(true) ?? [];
         const drafts = this.collections.get("drafts")?.getPages(true) ?? [];

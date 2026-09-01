@@ -145,7 +145,7 @@ export function renderPage(
       `[${props.page.id}] 布局 "${props.page.layout}" 不存在，且主题无 default/page 布局回退`,
     );
   }
-  return render(h(layout as any, props));
+  return "<!DOCTYPE html>\n" + render(h(layout as any, props));
 }
 
 /** 读取主题 globalStyles 文件内容（无则 undefined） */
