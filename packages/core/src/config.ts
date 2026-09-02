@@ -1,6 +1,6 @@
 import { cosmiconfig } from "cosmiconfig";
 import { createJiti } from "jiti";
-import type { SiteConfig } from "./types/config.js";
+import type { SiteConfig, ThemeConfig } from "./types/config.js";
 import { CONTENT_BASE, ARCHIVES_BASE } from "./types/config.js";
 
 const MODULE_NAME = "blog";
@@ -49,11 +49,13 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
     },
   });
 
+  // TODO: 目前这里使用的是 Partial，但实际是 SiteConfig 有些是必选项，需要再审查一下保证完全初始化
   const defaults: Partial<SiteConfig> = {
     assetsDir: "assets",
     contentDir: CONTENT_BASE,
     markdown: { highlight: true, katex: true, clientHighlight: false },
     server: { port: 3000, hot: true },
+    themeAssetsMode: "merge",
     pluginsDir: "plugins",
     language: "zh-CN",
     perPage: 10,
@@ -78,7 +80,7 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
  */
 export async function loadThemeConfig(
   cwd: string,
-): Promise<Record<string, unknown> | undefined> {
+): Promise<ThemeConfig | undefined> {
   const explorer = cosmiconfig("theme", {
     searchPlaces: THEME_CONFIG_PLACES,
     loaders: {
@@ -89,5 +91,5 @@ export async function loadThemeConfig(
 
   const result = await explorer.search(cwd);
   if (!result || result.isEmpty) return undefined;
-  return result.config as Record<string, unknown>;
+  return result.config as ThemeConfig;
 }

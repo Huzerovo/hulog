@@ -40,9 +40,7 @@ function scaffoldSite(): string {
     }`,
   );
   write(root, "themes/default/index.ts", `
-    export default function () {
-      return { name: "default", layouts: { default: () => null } };
-    }`);
+    export default { name: "default", layouts: { default: () => null } }`);
   write(root, "content/posts/a.md", "---\ntitle: A\ndate: 2026-01-01\n---\nbody");
   write(root, "content/drafts/d.md", "---\ntitle: D\n---\nbody");
   // 站点插件：注册一个虚拟页 generator，验证虚拟页进入 site.pages

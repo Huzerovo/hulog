@@ -7,8 +7,6 @@ import { seqParse } from "./sequence/parse.js";
 import {
   loadTheme,
   renderPage,
-  readThemeStyles,
-  themeAssetsPrefix,
 } from "./theme.js";
 import {
   scanAssets,
@@ -41,7 +39,6 @@ export interface BuildResult {
   pages: { page: Page; html: string; }[];
 }
 
-
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // 考虑创建一个 utils.logger ？
   const buildLog = (msg: string) => console.log("  [build]: " + msg);
@@ -52,36 +49,32 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // TODO: 写一个 test 用于验证
   const siteConfig = await loadSiteConfig(cwd);
 
+  // ---- 主题加载 ----
+  // 主题配置合并：主题默认 < theme.config.ts，结果写入 theme.config（经 api.theme.config 访问）
+  const loadedTheme = await loadTheme(siteConfig.theme, cwd);
+  const { theme, themePath } = loadedTheme;
+  const themeConfig = await loadThemeConfig(cwd);
+  theme.config = {
+    ...(theme.config ?? {}),
+    ...(themeConfig ?? {}),
+  };
+
+  // NOTE: 强制 dev 模式渲染草稿
   if (options.dev) {
     siteConfig.renderDraft = true;
   }
 
-  // ---- init ----
-  const api = initCorePlugins(siteConfig, cwd);
+  // ---- site + init + 插件 ----
+  // site 需先于 plugins 创建：helpers 绑定 site，插件/主题经 api.site / api.theme 访问
+  const site = new SiteImpl(siteConfig, theme);
+  const api = initCorePlugins(site, cwd);
   await loadThemePlugins(api, cwd, siteConfig.theme);
   await loadSitePlugins(api, cwd);
   const renderers = api.plugins.renderers;
-  const helpers = api.plugins.helpers;
   const generators = api.plugins.generators;
   const hooks = api.plugins.hooks;
   buildLog("Loaded Plugins");
-  const site = new SiteImpl(siteConfig);
   await hooks.afterInit.call(site);
-  api.site = site;
-
-  // ---- 主题加载 ----
-  const loadedTheme = await loadTheme(siteConfig.theme, cwd, api);
-  // 主题资源输出前缀（themeAsset helper 与主题资源写入共用）
-  const prefix = themeAssetsPrefix(siteConfig.theme, loadedTheme.theme.assetsMode);
-  helpers.setThemeAssetsPrefix(prefix);
-  // 主题配置合并：主题默认 < 站点 theme.config.ts < blog.config.ts 内联 themeConfig
-  const themeConfig = await loadThemeConfig(cwd);
-  const mergedThemeConfig: Record<string, unknown> = {
-    ...(loadedTheme.theme.config ?? {}),
-    ...(themeConfig ?? {}),
-    ...(siteConfig.themeConfig ?? {}), // TODO: 移除这个字段，site 和 theme 的配置分离
-  };
-  siteConfig.themeConfig = mergedThemeConfig;
 
   const contentRoot = path.join(cwd, siteConfig.contentDir ?? CONTENT_BASE);
   const assetsDir = siteConfig.assetsDir ?? "assets";
@@ -152,10 +145,15 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // ---- process ----
   const scanned = scanAssets({ contentRoot, assetsDirAbs, pages: allPages });
   site.setAssets(scanned.assets as Asset[]);
-  // 主题资源（主题模块已提前加载，prefix 已确定）
-  if (loadedTheme.assetsDir) {
-    for (const rel of walkFiles(loadedTheme.assetsDir)) {
-      const abs = path.join(loadedTheme.assetsDir, rel);
+  // 主题 assets 目录与 URL 前缀
+  const themeAssetsDir = path.join(themePath, siteConfig.assetsDir ?? "assets");
+  const prefix = siteConfig.themeAssetsMode === "namespace"
+    ? `/${siteConfig.assetsDir ?? "assets"}/${theme.name}`
+    : `/${siteConfig.assetsDir ?? "assets"}`;
+  // 主题资源（主题模块已提前加载，prefix 已确定；目录可缺失）
+  if (fs.existsSync(themeAssetsDir)) {
+    for (const rel of walkFiles(themeAssetsDir)) {
+      const abs = path.join(themeAssetsDir, rel);
       const base = path.basename(rel);
       // less partial（_ 前缀，如 _highlight.less）仅作为 @import 源，不独立输出
       if (/\.less$/i.test(rel)) {
@@ -196,7 +194,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     assets,
     postDirByPageId: scanned.postDirByPageId,
   };
-  const styles = readThemeStyles(loadedTheme);
   const results: RenderResult[] = [];
   for (const page of allPages) {
     await hooks.beforeRender.call(page);
@@ -214,10 +211,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     page.metadata.toc = mdResult.toc;
     await hooks.afterRender.call(page);
     const html = renderPage(loadedTheme, {
-      site,
       page,
-      config: siteConfig,
-      styles,
       api,
     });
     results.push({ page, html });
@@ -253,7 +247,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 }
 
 // ---------- 内部工具 ----------
-
 
 function checkUrlConflicts(pages: Page[]) {
   const seen = new Map<string, string>();

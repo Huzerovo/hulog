@@ -2,17 +2,31 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { HelperRegistryImpl, registerCoreHelpers } from "../src/helper.js";
+import { SiteImpl } from "../src/site.js";
 import type { HelperRegistry } from "../src/types/helper.js";
+import type { SiteConfig } from "../src/types/config.js";
+import type { Theme } from "../src/types/theme.js";
 
-function registry(): HelperRegistry {
-  const reg = new HelperRegistryImpl();
+function makeSite(config: Partial<SiteConfig> = {}): SiteImpl {
+  const cfg = {
+    siteTitle: "t",
+    theme: "default",
+    themeAssetsMode: "merge",
+    collections: [],
+    ...config,
+  } as SiteConfig;
+  return new SiteImpl(cfg, { name: "default", layouts: {} } as Theme);
+}
+
+function registry(config?: Partial<SiteConfig>): HelperRegistry {
+  const reg = new HelperRegistryImpl(makeSite(config));
   registerCoreHelpers(reg);
   return reg;
 }
 
 test("注册表相互隔离（不累积/不泄漏）", () => {
-  const a = new HelperRegistryImpl();
-  const b = new HelperRegistryImpl();
+  const a = registry();
+  const b = registry();
   a.register("x", () => 1);
   b.register("x", () => 2);
   assert.equal(a.get("x")!(), 1);
@@ -36,12 +50,11 @@ test("核心 helpers: assetUrl", () => {
   assert.equal(reg.get("assetUrl")!("/a.png"), "/assets/a.png");
 });
 
-test("核心 helpers: themeAsset 前缀随注册表变化", () => {
-  const reg = registry();
-  const ta = reg.get("themeAsset")!;
-  assert.equal(ta("x.css"), "/assets/x.css");
-  reg.setThemeAssetsPrefix("/assets/my-theme");
-  assert.equal(ta("x.css"), "/assets/my-theme/x.css");
+test("核心 helpers: themeAsset 前缀随 themeAssetsMode / theme 名", () => {
+  const taMerge = registry({ themeAssetsMode: "merge" }).get("themeAsset")!;
+  assert.equal(taMerge("x.css"), "/assets/x.css");
+  const taNs = registry({ themeAssetsMode: "namespace" }).get("themeAsset")!;
+  assert.equal(taNs("x.css"), "/assets/default/x.css");
 });
 
 test("核心 helpers: pickCover 确定性选择", () => {

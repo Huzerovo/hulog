@@ -1,5 +1,4 @@
 import path from "node:path";
-import type { Page } from "./types/page.js";
 import type { SiteConfig } from "./types/config.js";
 
 /**

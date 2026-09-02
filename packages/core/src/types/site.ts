@@ -2,6 +2,7 @@ import type { Collection } from "./collection.js";
 import type { Page } from "./page.js";
 import type { Asset } from "./asset.js";
 import type { SiteConfig } from "./config.js";
+import type { Theme } from "./theme.js";
 
 /**
  * Site —— 全局站点对象
@@ -27,4 +28,7 @@ export interface Site {
   getAssets(dir: string): Asset[];
 
   get config(): SiteConfig;
+
+  /** 站点主题对象（含 .config） */
+  get theme(): Theme;
 }

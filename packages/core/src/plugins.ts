@@ -17,6 +17,7 @@ import path from "node:path";
 
 import type { Site } from "./types/site.js";
 import type { SiteConfig } from "./types/config.js";
+import type { Theme } from "./types/theme.js";
 import type { GeneratorRegistry } from "./types/generator.js";
 import type { Renderer, RendererRegistry } from "./types/renderer.js";
 import type { HelperRegistry } from "./types/helper.js";
@@ -35,9 +36,10 @@ export type PluginKind = "generator" | "hook" | "renderer" | "helper";
 /** 插件类型与文件名前缀的映射（前缀用于校验与分类，api 统一传入） */
 const PLUGIN_PREFIX_RE = /^(generator|hook|renderer|helper)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
 
-/** 创建统一 api 并注册内置插件（helper / generator），返回可供插件与主题使用的 PluginAPI */
-export function initCorePlugins(config: SiteConfig, cwd: string): PluginAPI {
-  const helper: HelperRegistry = new HelperRegistryImpl();
+/** 创建统一 api 并注册内置插件（helper / generator）。site 需已创建（helpers 绑定 site）。 */
+export function initCorePlugins(site: Site, cwd: string): PluginAPI {
+  const config = site.config;
+  const helper: HelperRegistry = new HelperRegistryImpl(site);
   registerCoreHelpers(helper);
 
   const generator: GeneratorRegistry = new GeneratorRegistryImpl();
@@ -48,6 +50,8 @@ export function initCorePlugins(config: SiteConfig, cwd: string): PluginAPI {
   const api: PluginAPI = {
     config,
     cwd,
+    site,
+    theme: site.theme,
     plugins: {
       generators: generator,
       helpers: helper,
@@ -128,12 +132,14 @@ export async function loadPlugins(
  * 统一插件 api：config / cwd / site 为共享基础，四类能力收敛到 plugins 命名空间。
  */
 export interface PluginAPI {
-  /** 访问站点配置 */
+  /** 站点配置（等价 site.config） */
   config: SiteConfig;
   /** 项目根目录 */
   cwd: string;
-  /** 站点对象（afterInit 之后可用） */
+  /** 站点对象（含 .config 站点配置 / .theme 主题对象 / .pages / .posts） */
   site?: Site;
+  /** 主题对象（含 .config 主题配置） */
+  theme?: Theme;
   /** 注册/使用能力命名空间 */
   plugins: {
     hooks: Hooks;

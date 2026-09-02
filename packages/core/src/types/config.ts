@@ -1,13 +1,28 @@
 import type { CollectionConfig } from "./collection.js";
 
-/**
- * 站点配置
- */
+/** 主题资源输出模式 */
+export type ThemeAssetsMode = "merge" | "namespace";
 
+// 文件夹定义
+
+/** themes 目录 */
 export const THEME_BASE = "themes";
+/** 插件目录 */
 export const PLUGINS_BASE = "plugins";
+/** 内容目录 */
 export const CONTENT_BASE = "content";
+/** 归档页 */
 export const ARCHIVES_BASE = "archives";
+/** 文章集合名 */
+export const POSTS_NAME = "posts";
+/** 草稿集合名 */
+export const DRAFTS_NAME = "drafts";
+/** 页面目录 */
+export const PAGES_NAME = "pages";
+/** 网站资源目录 */
+export const ASSETS_BASE = "assets";
+/** 其他资源 */
+export const PUBLIC_BASE = "public";
 
 export interface MarkdownConfig {
   /** 是否启用代码高亮（rehype-shiki），默认 true */
@@ -26,7 +41,7 @@ export interface ServerConfig {
 }
 
 /**
- * SiteConfig —— 站点配置
+ * SiteConfig 站点配置
  */
 export interface SiteConfig {
   /** 站点标题 */
@@ -50,8 +65,12 @@ export interface SiteConfig {
   /** 主题名（本地 themes/<name> 或 npm 包）或路径 */
   theme: string;
 
-  /** 主题配置（由主题消费，结构由主题定义） */
-  themeConfig?: Record<string, unknown>;
+  /*
+   * 主题 assets 合并模式
+   * - "merge": siteRoot/themes/default/assets + siteRoot/assets => /assets
+   * - "namespace": siteRoot/themes/default/assets => /assets/default + siteRoot/assets => /assets
+   */
+  themeAssetsMode: ThemeAssetsMode;
 
   /** 内容根目录（相对项目根），默认 "content" */
   contentDir?: string;
@@ -87,3 +106,8 @@ export interface SiteConfig {
   /** 插件目录（相对项目根，默认 "plugins"），自动按前缀发现 generator-/hook-/renderer- 插件 */
   pluginsDir?: string;
 }
+
+/**
+ * ThemeConfig 主题配置
+ */
+export type ThemeConfig = Record<string, unknown>;

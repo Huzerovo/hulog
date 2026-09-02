@@ -12,6 +12,7 @@ import type { SiteConfig } from "../src/types/config.js";
 const config = (url: string): SiteConfig => ({
   siteTitle: "t",
   theme: "x",
+  themeAssetsMode: "merge",
   collections: [],
   url,
 });

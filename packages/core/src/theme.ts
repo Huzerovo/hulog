@@ -6,7 +6,6 @@ import { build } from "esbuild";
 import { h } from "preact";
 import { render } from "preact-render-to-string";
 import type { LayoutProps, Theme } from "./types/theme.js";
-import type { PluginAPI } from "./plugins.js";
 
 /**
  * 主题加载与渲染
@@ -17,9 +16,7 @@ import type { PluginAPI } from "./plugins.js";
 export interface LoadedTheme {
   theme: Theme;
   /** 主题目录绝对路径 */
-  dir: string;
-  /** 主题资源目录绝对路径（assetsDir 配置，可选） */
-  assetsDir: string | null;
+  themePath: string;
 }
 
 // 从 core 自身解析 preact（指向 ESM 入口），保证主题位于任意目录时都能 bundle。
@@ -66,19 +63,18 @@ export function resolveThemeDir(themeName: string, projectRoot: string): string 
 export async function loadTheme(
   themeName: string,
   projectRoot: string,
-  api: PluginAPI,
 ): Promise<LoadedTheme> {
-  const dir = resolveThemeDir(themeName, projectRoot);
-  const entry = path.join(dir, "index.ts");
+  const themePath = resolveThemeDir(themeName, projectRoot);
+  const entry = path.join(themePath, "index.ts");
   if (!fs.existsSync(entry)) {
-    throw new Error(`主题缺少入口文件 index.ts: ${dir}`);
+    throw new Error(`主题缺少入口文件 index.ts: ${themePath}`);
   }
 
   const cacheDir = path.join(projectRoot, "node_modules", ".cache", "hulog");
   fs.mkdirSync(cacheDir, { recursive: true });
   const hash = crypto
     .createHash("md5")
-    .update(dir)
+    .update(themePath)
     .digest("hex")
     .slice(0, 10);
   const outfile = path.join(cacheDir, `theme-${hash}.mjs`);
@@ -112,22 +108,12 @@ export async function loadTheme(
 
   // 带版本 query 绕过 ESM 缓存（dev 热重载）
   const mod = await import(`${outfile}?t=${Date.now()}`);
-  const candidate = (mod.default ?? mod) as unknown;
-  const theme: Theme =
-    typeof candidate === "function"
-      ? await (candidate as (api: PluginAPI) => Theme | Promise<Theme>)(api)
-      : (candidate as Theme);
+  const theme = (mod.default ?? mod) as Theme;
   if (!theme || typeof theme.name !== "string" || !theme.layouts) {
-    throw new Error(`主题入口未导出合法的 Theme 对象（需含 name 与 layouts）: ${dir}`);
+    throw new Error(`主题入口未导出合法的 Theme 对象（需含 name 与 layouts）: ${themePath}`);
   }
 
-  let assetsDir: string | null = null;
-  if (theme.assetsDir) {
-    const abs = path.join(dir, theme.assetsDir);
-    if (fs.existsSync(abs)) assetsDir = abs;
-  }
-
-  return { theme, dir, assetsDir };
+  return { theme, themePath };
 }
 
 /**
@@ -148,19 +134,10 @@ export function renderPage(
   return "<!DOCTYPE html>\n" + render(h(layout as any, props));
 }
 
-/** 读取主题 globalStyles 文件内容（无则 undefined） */
-export function readThemeStyles(loaded: LoadedTheme): string | undefined {
-  const gs = loaded.theme.globalStyles;
-  if (!gs) return undefined;
-  const abs = path.join(loaded.dir, gs);
-  if (!fs.existsSync(abs)) return undefined;
-  return fs.readFileSync(abs, "utf8");
-}
-
 /**
  * 计算主题资源输出前缀：
  * merge → /assets；namespace → /assets/<theme-name>
  */
-export function themeAssetsPrefix(themeName: string, mode?: string): string {
-  return mode === "namespace" ? `/assets/${themeName}` : "/assets";
-}
+// export function themeAssetsPrefix(themeName: string, mode?: string): string {
+//   return mode === "namespace" ? `/assets/${themeName}` : "/assets";
+// }

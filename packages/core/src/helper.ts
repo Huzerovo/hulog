@@ -8,6 +8,7 @@ import { pageUrl, paginate, pinSort } from "./pagination.js";
 import type { HelperRegistry } from "./types/helper.js";
 import type { Page, PageBase } from "./types/page.js";
 import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
+import type { Site } from "./types/site.js";
 
 /**
  * 核心内置 helper 注册（每次构建独立注册表）。
@@ -17,7 +18,12 @@ import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
 
 export class HelperRegistryImpl implements HelperRegistry {
   private helpers = new Map<string, Function>();
-  private assetsPrefix = "/assets";
+  private _site: Site;
+
+  constructor(site: Site) {
+    this._site = site;
+
+  }
 
   /** 注册模板辅助函数 */
   register(name: string, fn: Function): void {
@@ -29,13 +35,8 @@ export class HelperRegistryImpl implements HelperRegistry {
     return this.helpers.get(name);
   }
 
-  /** 主题资源输出前缀（merge → /assets；namespace → /assets/<theme>） */
-  setThemeAssetsPrefix(prefix: string): void {
-    this.assetsPrefix = prefix;
-  }
-
-  get themeAssetsPrefix(): string {
-    return this.assetsPrefix;
+  get site(): Site {
+    return this._site;
   }
 }
 
@@ -81,13 +82,14 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
   });
 
   /**
-   * 主题资源：前缀随 assetsMode 变化。
-   * merge → /assets/<path>；namespace → /assets/<theme-name>/<path>
-   * 前缀由 build 阶段经 registry.setThemeAssetsPrefix 设置。
+   * 主题资源：前缀随 themeAssetsMode 变化（merge → /assets，namespace → /assets/<theme>）。
+   * 依 site.config.themeAssetsMode / site.config.theme 决定（helper 绑定 site）。
    */
   registry.register("themeAsset", (p: string) => {
     const s = String(p).replace(/^\/+/, "");
-    return registry.themeAssetsPrefix + "/" + s;
+    const themeName = registry.site.config.theme;
+    const mode = registry.site.config.themeAssetsMode;
+    return mode === "namespace" ? `/assets/${themeName}/${s}` : `/assets/${s}`;
   });
 
   /** 封面确定性选择：单封面直接返回；多封面基于 slug 哈希取模 */
