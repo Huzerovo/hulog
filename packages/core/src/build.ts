@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import less from "less";
-import { loadSiteConfig, loadThemeConfig } from "./config.js";
+import { loadSiteConfig } from "./config.js";
 import { SiteImpl } from "./site.js";
 import { seqParse } from "./sequence/parse.js";
 import {
@@ -22,10 +22,10 @@ import type { SiteConfig } from "./types/config.js";
 import { CONTENT_BASE } from "./types/config.js";
 import type { GeneratorCallback } from "./types/generator.js";
 import type { FileEntry, RenderResult } from "./types/sequence.js";
-import { initCorePlugins, loadThemePlugins, loadSitePlugins } from './plugins.js';
 import seqRead from "./sequence/read.js";
 import { seqCollect, collectVirtual } from "./sequence/collect.js";
 import { seqWrite } from "./sequence/write.js";
+import { initApi } from "./api.js";
 
 export interface BuildOptions {
   cwd?: string;
@@ -51,13 +51,9 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- 主题加载 ----
   // 主题配置合并：主题默认 < theme.config.ts，结果写入 theme.config（经 api.theme.config 访问）
-  const loadedTheme = await loadTheme(siteConfig.theme, cwd);
-  const { theme, themePath } = loadedTheme;
-  const themeConfig = await loadThemeConfig(cwd);
-  theme.config = {
-    ...(theme.config ?? {}),
-    ...(themeConfig ?? {}),
-  };
+  // NOTE: loadedTheme 仅在 render 阶段作为参数传入时使用了
+  // TODO: 重构 render 阶段，render 参数应该只需要 site（site 中包含了 theme 对象）
+  const { theme, themePath } = await loadTheme(siteConfig.theme, cwd);
 
   // NOTE: 强制 dev 模式渲染草稿
   if (options.dev) {
@@ -67,9 +63,9 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // ---- site + init + 插件 ----
   // site 需先于 plugins 创建：helpers 绑定 site，插件/主题经 api.site / api.theme 访问
   const site = new SiteImpl(siteConfig, theme);
-  const api = initCorePlugins(site, cwd);
-  await loadThemePlugins(api, cwd, siteConfig.theme);
-  await loadSitePlugins(api, cwd);
+  // NOTE: 目前设计上 api 是包含所有站点对象：site, theme （通过 site.theme 访问）以及 plugins，通过 api 能够访问所有对象。
+  // TODO: api 阶段与 plugins 初始化独立，在 api 初始化中加载插件。
+  const api = await initApi(site, cwd);
   const renderers = api.plugins.renderers;
   const generators = api.plugins.generators;
   const hooks = api.plugins.hooks;
@@ -210,7 +206,9 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     page.content = mdResult.html;
     page.metadata.toc = mdResult.toc;
     await hooks.afterRender.call(page);
-    const html = renderPage(loadedTheme, {
+
+    buildLog("render page: " + page.title);
+    const html = renderPage(theme, {
       page,
       api,
     });

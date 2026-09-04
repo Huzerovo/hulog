@@ -15,10 +15,11 @@ export interface Site {
   /** 全部页面（所有集合的扁平数组） */
   get pages(): Page[];
 
-  // 获取全部文章
+  /** 获取全部文章（允许渲染草稿时也会包括草稿） */
   get posts(): Page[];
 
   /** 全部已发布页面（过滤 draft） */
+  // NOTE: 这个是否需要存在？
   get publishedPages(): Page[];
 
   /** 全部资源（专属 + 全局），供插件枚举 */

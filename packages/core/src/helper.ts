@@ -81,6 +81,9 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
     return "/assets/" + s;
   });
 
+  registry.register("archivesUrl", () => {
+  })
+
   /**
    * 主题资源：前缀随 themeAssetsMode 变化（merge → /assets，namespace → /assets/<theme>）。
    * 依 site.config.themeAssetsMode / site.config.theme 决定（helper 绑定 site）。

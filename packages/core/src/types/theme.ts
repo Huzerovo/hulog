@@ -1,7 +1,7 @@
 import type { ComponentType } from "preact";
 import type { Page } from "./page.js";
 import type { ThemeConfig } from "./config.js";
-import type { PluginAPI } from "../plugins.js";
+import { CoreAPI } from "./api.js";
 
 /**
  * 主题系统
@@ -12,7 +12,7 @@ export interface LayoutProps {
   /** 当前渲染的页面 */
   page: Page;
   /** 统一插件 api：api.site（含 .config）/ api.theme（含 .config） */
-  api: PluginAPI;
+  api: CoreAPI;
 }
 
 /** 布局组件：纯函数组件，构建时渲染，禁止客户端钩子与事件绑定 */

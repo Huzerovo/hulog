@@ -16,12 +16,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { Site } from "./types/site.js";
-import type { SiteConfig } from "./types/config.js";
-import type { Theme } from "./types/theme.js";
 import type { GeneratorRegistry } from "./types/generator.js";
 import type { Renderer, RendererRegistry } from "./types/renderer.js";
 import type { HelperRegistry } from "./types/helper.js";
-import type { Hooks } from "./types/hook.js";
 import { HelperRegistryImpl, registerCoreHelpers } from "./helper.js";
 import { GeneratorRegistryImpl } from "./generator.js";
 import { RendererRegistryImpl } from "./renderer.js";
@@ -30,6 +27,7 @@ import homeGenerator from "./generators/generator-home.js";
 import archiveGenerator from "./generators/generator-archive.js";
 import taxonomyGenerator from "./generators/generator-taxonomy.js";
 import { renderMarkdown } from "./markdown.js";
+import { CoreAPI, PluginsAPI } from "./types/api.js";
 
 export type PluginKind = "generator" | "hook" | "renderer" | "helper";
 
@@ -37,8 +35,8 @@ export type PluginKind = "generator" | "hook" | "renderer" | "helper";
 const PLUGIN_PREFIX_RE = /^(generator|hook|renderer|helper)-(.+)\.(ts|tsx|js|mjs|cjs)$/;
 
 /** 创建统一 api 并注册内置插件（helper / generator）。site 需已创建（helpers 绑定 site）。 */
-export function initCorePlugins(site: Site, cwd: string): PluginAPI {
-  const config = site.config;
+export async function initCorePlugins(site: Site, cwd: string): Promise<PluginsAPI> {
+  // 提前加载 core helper，generator 中可能使用
   const helper: HelperRegistry = new HelperRegistryImpl(site);
   registerCoreHelpers(helper);
 
@@ -47,51 +45,45 @@ export function initCorePlugins(site: Site, cwd: string): PluginAPI {
   renderer.register("markdown", renderMarkdown as Renderer);
   const hook = initHooks();
 
-  const api: PluginAPI = {
-    config,
-    cwd,
-    site,
-    theme: site.theme,
-    plugins: {
-      generators: generator,
-      helpers: helper,
-      hooks: hook,
-      renderers: renderer,
-    },
+  const plugins: PluginsAPI = {
+    generators: generator,
+    helpers: helper,
+    hooks: hook,
+    renderers: renderer,
   };
 
   // 内置 generator（core:home / core:archives / core:taxonomy）：以 core: 前缀命名，
   // 与站点/主题插件（如 "home"）区分；同名 register 仍会覆盖（Map set 语义）
-  registerCoreGenerators(api);
+  registerCoreGenerators(plugins);
 
-  return api;
+  return plugins;
 }
 
 /** 内置 generator 注册（initCorePlugins 阶段调用） */
-export function registerCoreGenerators(api: PluginAPI): void {
-  homeGenerator(api);
-  archiveGenerator(api);
-  taxonomyGenerator(api);
+export function registerCoreGenerators(plugins: PluginsAPI): void {
+  homeGenerator(plugins);
+  archiveGenerator(plugins);
+  taxonomyGenerator(plugins);
 }
 
 /** 主题插件目录加载（build 阶段调用）：themes/<theme>/plugins/ 下的 generator-/hook- 等 */
 export async function loadThemePlugins(
-  api: PluginAPI,
+  plugins: PluginsAPI,
   cwd: string,
   themeName: string,
 ): Promise<void> {
   // 主题插件可选：目录不存在时不告警
-  await loadPlugins(path.join(cwd, "themes", themeName, "plugins"), api);
+  await loadPlugins(path.join(cwd, "themes", themeName, "plugins"), plugins);
 }
 
 /** 站点插件目录加载（build 阶段调用）：pluginsDir（默认 plugins/）下的插件 */
-export async function loadSitePlugins(api: PluginAPI, cwd: string): Promise<void> {
-  await loadPlugins(path.join(cwd, api.config.pluginsDir ?? "plugins"), api);
+export async function loadSitePlugins(plugins: PluginsAPI, cwd: string, site: Site): Promise<void> {
+  await loadPlugins(path.join(cwd, site.config.pluginsDir ?? "plugins"), plugins);
 }
 
 export async function loadPlugins(
   pluginsDir: string,
-  api: PluginAPI,
+  plugins: PluginsAPI,
 ): Promise<void> {
   if (!fs.existsSync(pluginsDir)) {
     return;
@@ -124,36 +116,17 @@ export async function loadPlugins(
       console.warn(`[warn] 插件 "${name}" 未导出函数，已跳过`);
       continue;
     }
-    await fn(api);
+    await fn(plugins);
   }
 }
 
-/**
- * 统一插件 api：config / cwd / site 为共享基础，四类能力收敛到 plugins 命名空间。
- */
-export interface PluginAPI {
-  /** 站点配置（等价 site.config） */
-  config: SiteConfig;
-  /** 项目根目录 */
-  cwd: string;
-  /** 站点对象（含 .config 站点配置 / .theme 主题对象 / .pages / .posts） */
-  site?: Site;
-  /** 主题对象（含 .config 主题配置） */
-  theme?: Theme;
-  /** 注册/使用能力命名空间 */
-  plugins: {
-    hooks: Hooks;
-    generators: GeneratorRegistry;
-    renderers: RendererRegistry;
-    helpers: HelperRegistry;
-  };
-}
-
 /** generator 插件 api（plugins/generator-*.ts） */
-export type GeneratorAPI = PluginAPI;
+export type GeneratorAPI = PluginsAPI;
 /** hook 插件 api（plugins/hook-*.ts） */
-export type HookAPI = PluginAPI;
+export type HookAPI = PluginsAPI;
 /** renderer 插件 api（plugins/renderer-*.ts） */
-export type RendererAPI = PluginAPI;
+export type RendererAPI = PluginsAPI;
+/** helper 插件 api */
+export type HelperAPI = PluginsAPI;
 /** 主题 api（themes/<name>/index.ts 默认导出函数入参） */
-export type ThemeAPI = PluginAPI;
+export type ThemeAPI = PluginsAPI;

@@ -1,13 +1,13 @@
+import { PluginsAPI } from "../types/api.js";
 import { VIRTUAL_PAGE_COLLECTION, type Page } from "../types/page.js";
 import type { PaginateOptions } from "../types/pagination.js";
-import type { GeneratorAPI } from "../plugins.js";
 
 /**
  * 首页生成器：posts 集合按 perPage 分页（layout: index）。
  * 第 1 页 /，第 N 页 /page/N/（站点级分页）。
  */
-export default function(api: GeneratorAPI) {
-  const helper = api.plugins.helpers;
+export default function(plugins: PluginsAPI) {
+  const helper = plugins.helpers;
   const paginate = helper.get("paginate") as (
     posts: Page[],
     opts: PaginateOptions,
@@ -19,11 +19,11 @@ export default function(api: GeneratorAPI) {
   ) => string;
   const pinSort = helper.get("pinSort") as (posts: Page[]) => Page[];
 
-  api.plugins.generators.register("core:home", (site): Page[] => {
+  plugins.generators.register("core:home", (site): Page[] => {
     const posts = site.posts;
     if (posts.length === 0) return [];
-    const perPage = api.config.perPage ?? 10;
-    const format = api.config.paginationDir ?? "page";
+    const perPage = site.config.perPage ?? 10;
+    const format = site.config.paginationDir ?? "page";
     return paginate(pinSort(posts), {
       base: "/",
       perPage,

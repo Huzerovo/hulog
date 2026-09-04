@@ -42,7 +42,6 @@ export {
   registerCoreGenerators,
   loadThemePlugins,
   loadSitePlugins,
-  type PluginAPI,
   type PluginKind,
   type GeneratorAPI,
   type HookAPI,
@@ -54,3 +53,5 @@ export {
   resolveAssetRef,
   type AssetScanResult,
 } from "./assets.js";
+
+export type { PluginsAPI } from "./types/api.js";

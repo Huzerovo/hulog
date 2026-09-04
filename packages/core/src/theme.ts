@@ -6,6 +6,7 @@ import { build } from "esbuild";
 import { h } from "preact";
 import { render } from "preact-render-to-string";
 import type { LayoutProps, Theme } from "./types/theme.js";
+import { loadThemeConfig } from "./config.js";
 
 /**
  * 主题加载与渲染
@@ -113,6 +114,13 @@ export async function loadTheme(
     throw new Error(`主题入口未导出合法的 Theme 对象（需含 name 与 layouts）: ${themePath}`);
   }
 
+  // 加载主题配置文件
+  const themeConfig = await loadThemeConfig(projectRoot);
+  theme.config = {
+    ...(theme.config ?? {}),
+    ...(themeConfig ?? {}),
+  };
+
   return { theme, themePath };
 }
 
@@ -120,10 +128,10 @@ export async function loadTheme(
  * 渲染单页：选择布局（精确 → default → page → 报错），preact-render-to-string 输出 HTML。
  */
 export function renderPage(
-  loaded: LoadedTheme,
+  theme: Theme,
   props: LayoutProps,
 ): string {
-  const { layouts } = loaded.theme;
+  const { layouts } = theme;
   const layout =
     layouts[props.page.layout] ?? layouts.default ?? layouts.page;
   if (!layout) {
