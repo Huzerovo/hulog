@@ -20,7 +20,7 @@ export interface Site {
 
   /** 全部已发布页面（过滤 draft） */
   // NOTE: 这个是否需要存在？
-  get publishedPages(): Page[];
+  // get publishedPages(): Page[];
 
   /** 全部资源（专属 + 全局），供插件枚举 */
   get assets(): Asset[];

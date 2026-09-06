@@ -17,7 +17,6 @@ import {
 import { toPosixPath } from "./path.js";
 import type { Asset } from "./types/asset.js";
 import type { Page } from "./types/page.js";
-import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
 import type { SiteConfig } from "./types/config.js";
 import { CONTENT_BASE } from "./types/config.js";
 import type { GeneratorCallback } from "./types/generator.js";
@@ -26,6 +25,7 @@ import seqRead from "./sequence/read.js";
 import { seqCollect, collectVirtual } from "./sequence/collect.js";
 import { seqWrite } from "./sequence/write.js";
 import { initApi } from "./api.js";
+import { seqGenerate } from "./sequence/generate.js";
 
 export interface BuildOptions {
   cwd?: string;
@@ -51,8 +51,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- 主题加载 ----
   // 主题配置合并：主题默认 < theme.config.ts，结果写入 theme.config（经 api.theme.config 访问）
-  // NOTE: loadedTheme 仅在 render 阶段作为参数传入时使用了
-  // TODO: 重构 render 阶段，render 参数应该只需要 site（site 中包含了 theme 对象）
   const { theme, themePath } = await loadTheme(siteConfig.theme, cwd);
 
   // NOTE: 强制 dev 模式渲染草稿
@@ -109,19 +107,10 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // ---- generate ----
   // 基于物理集合生成虚拟页面（archives / tagcloud 等）；虚拟页不依赖虚拟集合
-  const virtualPages: Page[] = [];
   // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
   const callbacks: GeneratorCallback[] = [];
   generators.forEach((fn) => callbacks.push(fn));
-  for (const fn of callbacks) {
-    const vPages = await fn(site);
-    for (const v of vPages) {
-      if (v.collection === VIRTUAL_PAGE_COLLECTION && !v.url.endsWith('/')) {
-        v.url += '/';
-      }
-      virtualPages.push(v);
-    }
-  }
+  const virtualPages: Page[] = await seqGenerate(site, callbacks);
   await hooks.afterGenerate.call(virtualPages);
   buildLog("Finished generate");
 
@@ -198,7 +187,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
     const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
-    // NOTE: 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，
+    // NOTE: 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，渲染时间却到秒级了
     const mdResult = await renderer(page.rawContent, page, {
       config: siteConfig,
       resolve: resolveCtx,

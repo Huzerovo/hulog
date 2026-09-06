@@ -110,4 +110,4 @@ export interface SiteConfig {
 /**
  * ThemeConfig 主题配置
  */
-export type ThemeConfig = Record<string, unknown>;
+export type ThemeCustomConfig = Record<string, unknown>;

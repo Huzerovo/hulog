@@ -1,6 +1,6 @@
 import type { ComponentType } from "preact";
 import type { Page } from "./page.js";
-import type { ThemeConfig } from "./config.js";
+import type { ThemeCustomConfig } from "./config.js";
 import { CoreAPI } from "./api.js";
 
 /**
@@ -29,7 +29,7 @@ export interface Theme {
   name: string;
 
   /** 主题配置（build 合并主题默认 + theme.config.ts 后写入，经 api.theme.config 访问） */
-  config?: ThemeConfig;
+  config?: ThemeCustomConfig;
 
   /** 布局映射：page.layout → 组件；fallback 链为 default → page */
   layouts: LayoutsConfig;

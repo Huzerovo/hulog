@@ -41,9 +41,9 @@ export class SiteImpl implements Site {
 
   }
 
-  get publishedPages(): Page[] {
-    return this.pages.filter((p) => !p.draft);
-  }
+  // get publishedPages(): Page[] {
+  //   return this.pages.filter((p) => !p.draft);
+  // }
 
   get assets(): Asset[] {
     return this._assets;

@@ -1,6 +1,6 @@
 import { cosmiconfig } from "cosmiconfig";
 import { createJiti } from "jiti";
-import type { SiteConfig, ThemeConfig } from "./types/config.js";
+import type { SiteConfig, ThemeCustomConfig } from "./types/config.js";
 import { CONTENT_BASE, ARCHIVES_BASE } from "./types/config.js";
 
 const MODULE_NAME = "blog";
@@ -80,7 +80,7 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
  */
 export async function loadThemeConfig(
   cwd: string,
-): Promise<ThemeConfig | undefined> {
+): Promise<ThemeCustomConfig | undefined> {
   const explorer = cosmiconfig("theme", {
     searchPlaces: THEME_CONFIG_PLACES,
     loaders: {
@@ -91,5 +91,5 @@ export async function loadThemeConfig(
 
   const result = await explorer.search(cwd);
   if (!result || result.isEmpty) return undefined;
-  return result.config as ThemeConfig;
+  return result.config as ThemeCustomConfig;
 }
