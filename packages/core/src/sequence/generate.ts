@@ -1,4 +1,7 @@
-import { GeneratorCallback, Page, Site, VIRTUAL_PAGE_COLLECTION } from "../types";
+import { GeneratorCallback } from "../types/generator.js";
+import { Page, VIRTUAL_PAGE_COLLECTION } from "../types/page.js";
+import { Site } from "../types/site.js";
+
 
 export async function seqGenerate(site: Site, callbacks: GeneratorCallback[]): Promise<Page[]> {
   const allPages: Page[] = [];

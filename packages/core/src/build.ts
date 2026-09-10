@@ -39,6 +39,14 @@ export interface BuildResult {
   pages: { page: Page; html: string; }[];
 }
 
+function dumpMiddle(obj: any, file: string) {
+  const cwd = process.cwd();
+  const output = path.join(cwd, "buildMid");
+  fs.mkdirSync(output, { recursive: true });
+  const jstr = JSON.stringify(obj);
+  fs.writeFileSync(path.join(output, file), jstr);
+}
+
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // 考虑创建一个 utils.logger ？
   const buildLog = (msg: string) => console.log("  [build]: " + msg);
@@ -78,12 +86,14 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // 文件读取阶段，同时读取文章文件与资源文件
   const files: FileEntry[] = seqRead(contentRoot, cwd);
   await hooks.afterRead.call(files);
+  dumpMiddle(files, "read_FileEntry_files.json");
   buildLog("Finished read");
 
   // ---- parse ----
   // 物理页面生成阶段
   const physicsPage = seqParse(siteConfig, contentRoot, files);
   await hooks.afterParse.call(physicsPage);
+  dumpMiddle(physicsPage, "parse_Page_physicsPage.json");
   buildLog(`Finished parse, total physics pages: ${physicsPage.length}`);
 
   // ---- filter ----
@@ -94,6 +104,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     filteredPages.push(...physicsPage.filter((page) => !page.draft));
   }
   await hooks.afterFilter.call(filteredPages);
+  dumpMiddle(filteredPages, "filter_Page_filteredPages.json");
   buildLog("Finished filter");
 
   // ---- collect①（物理）----
@@ -103,6 +114,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     site.collections.set(col.name, col);
   }
   await hooks.afterCollectPhysical.call(physicalCollections);
+  dumpMiddle(physicalCollections, "collectPhy_Collection_physicalCollections.json");
   buildLog("Finished collect(physical)");
 
   // ---- generate ----
@@ -112,6 +124,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   generators.forEach((fn) => callbacks.push(fn));
   const virtualPages: Page[] = await seqGenerate(site, callbacks);
   await hooks.afterGenerate.call(virtualPages);
+  dumpMiddle(virtualPages, "generate_Page_virtualPages.json");
   buildLog("Finished generate");
 
   // ---- merge ----
@@ -119,12 +132,14 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const allPages: Page[] = [...filteredPages, ...virtualPages];
   checkUrlConflicts(allPages);
   await hooks.afterMerge.call(allPages);
+  dumpMiddle(allPages, "merge_Page_allPages.json");
   buildLog(`Finished merge, all pages: ${allPages.length}`);
 
   // ---- collect②（虚拟）----
   // 将虚拟页挂入 site.collections（已存在则并入，否则动态创建如 core:virtual）
   const virtualCollections = collectVirtual(site.collections, virtualPages);
   await hooks.afterCollectVirtual.call(virtualCollections);
+  dumpMiddle(virtualCollections, "mergeVir_Page_virtualCollections.json");
   buildLog("Finished collect(virtual)");
 
   // ---- process ----
@@ -174,6 +189,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Finished process");
 
   // ---- render ----
+  // TODO: 重构 render 流程，传入参数暂定为：page, site, theme, context
   const resolveCtx: ResolveContext = {
     assetsDirAbs,
     assets,
@@ -185,6 +201,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
     resolveCover(page, resolveCtx);
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
+    // TODO: 考虑一下应该如何支持多种文件类型
     const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
     // NOTE: 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，渲染时间却到秒级了
@@ -220,6 +237,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   seqWrite(distDir, results, assets);
   // public/ 直接复制
   // NOTE: 与 assets 的定位有些冲突？
+  // TODO: 加个 public/assets 检测警告
   // 比如完全可以有一个 siteRoot/public/assets 文件夹，这样配置 SiteConfig.assetsDir 的含义就有歧义了：
   // assetsDir 既可以代表 public 下的文件夹名称，也可以表示 siteRoot 下的文件夹名称
   // 且由于这个是最后的阶段了，public 中的 assets 优先级极高，可能会破坏之前配置好的 assets URL

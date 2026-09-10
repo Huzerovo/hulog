@@ -11,6 +11,7 @@
     "build": "npm run build:core && npm run build:cli",
     "build:core": "npm run build --workspace=@hulog/core",
     "build:cli": "npm run build --workspace=@hulog/cli",
+    "build:site": "npm run build && node packages/cli/dist/index.js build --base example",
     "typecheck": "npm run typecheck --workspaces",
     "typecheck:core": "npm run typecheck --workspace=@hulog/core",
     "typecheck:cli": "npm run typecheck --workspace=@hulog/cli",

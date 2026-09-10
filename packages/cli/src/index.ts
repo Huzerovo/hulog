@@ -30,7 +30,8 @@ program
 program
   .command("build")
   .description("生产构建")
-  .action(buildCmd);
+  .option("-b, --base <path>", "网站根目录", process.cwd())
+  .action((opts) => buildCmd({ base: opts.base }));
 
 program
   .command("clean")
