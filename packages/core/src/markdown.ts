@@ -13,8 +13,8 @@ import { toString } from "hast-util-to-string";
 import type { Root } from "hast";
 import { createHighlighterCoreSync, createJavaScriptRegexEngine, type HighlighterGeneric } from "shiki";
 import type { Page } from "./types/page.js";
-import { resolveAssetRef, type ResolveContext } from "./assets.js";
 import type {
+  AssetRegistry,
   MarkdownResult,
   RenderContext,
   TocEntry,
@@ -202,13 +202,13 @@ function rehypeNormalizeLangs(): () => (tree: Root) => void {
 }
 
 /** 资源引用解析 */
-function rehypeResolveAssets(page: Page, resolve: ResolveContext): () => (tree: Root) => void {
+function rehypeResolveAssets(page: Page, assets: AssetRegistry): () => (tree: Root) => void {
   return () => (tree: Root): void => {
     visit(tree, "element", (node) => {
       if (node.tagName === "img") {
         const src = node.properties.src;
         if (typeof src === "string" && src) {
-          const resolved = resolveAssetRef(src, page, resolve);
+          const resolved = assets.resolve(src, page);
           if (resolved === null) {
             throw new Error(
               `[${page.id}] 图片引用未命中任何资源: "${src}"（已在文章专属目录与全局 assetsDir 查找）`,
@@ -223,7 +223,7 @@ function rehypeResolveAssets(page: Page, resolve: ResolveContext): () => (tree: 
           typeof href === "string" &&
           (href.startsWith("./") || href.startsWith("../") || /^[\w.-]+\.\w+/.test(href))
         ) {
-          const resolved = resolveAssetRef(href, page, resolve);
+          const resolved = assets.resolve(href, page);
           if (resolved !== null) node.properties.href = resolved;
         }
       }
@@ -253,7 +253,7 @@ export async function renderMarkdown(
     .use(rehypeRaw)
     .use(rehypeSlug)
     .use(rehypeCollectToc(toc) as unknown as Plugin)
-    .use(rehypeResolveAssets(page, ctx.resolve) as unknown as Plugin);
+    .use(rehypeResolveAssets(page, ctx.assets) as unknown as Plugin);
   // rehype-katex 内部固定 throwOnError: false（不对外暴露该选项）
   if (useKatex) processor.use(rehypeKatex as unknown as Plugin);
   if (useShiki) {

@@ -1,17 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GeneratorRegistryImpl } from "../src/generator.js";
+import { GeneratorRegistryImpl } from "../src/plugins/generator.js";
 import { CollectionImpl } from "../src/collection.js";
 import { SiteImpl } from "../src/site.js";
 import {
   initCorePlugins,
   registerCoreGenerators,
-} from "../src/plugins.js";
+} from "../src/plugins/index.js";
 import type { SiteConfig } from "../src/types/config.js";
-import type { Theme } from "../src/types/theme.js";
 import type { Page } from "../src/types/page.js";
 
-/** 构造最小站点（含默认站点配置与空主题） */
+/** 构造最小站点（含默认站点配置） */
 function makeSite(config: Partial<SiteConfig> = {}): SiteImpl {
   const cfg = {
     siteTitle: "t",
@@ -20,7 +19,7 @@ function makeSite(config: Partial<SiteConfig> = {}): SiteImpl {
     collections: [],
     ...config,
   } as SiteConfig;
-  return new SiteImpl(cfg, { name: "default", layouts: {} } as Theme);
+  return new SiteImpl(cfg);
 }
 
 function mkPage(id: string): Page {
@@ -58,18 +57,18 @@ test("register/get/forEach 同名覆盖", () => {
   assert.deepEqual(seen, ["home"]);
 });
 
-test("initCorePlugins 注册内置 generator（core: 前缀）", () => {
-  const api = initCorePlugins(makeSite(), "/tmp");
+test("initCorePlugins 注册内置 generator（core: 前缀）", async () => {
+  const { registries } = await initCorePlugins(makeSite(), "/tmp");
   const names: string[] = [];
-  api.plugins.generators.forEach((fn, name) => names.push(name));
+  registries.generators.forEach((fn, name) => names.push(name));
   assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy"]);
 });
 
-test("registerCoreGenerators 可重复注册（幂等）", () => {
-  const api = initCorePlugins(makeSite(), "/tmp");
-  registerCoreGenerators(api);
+test("registerCoreGenerators 可重复注册（幂等）", async () => {
+  const { scoped } = await initCorePlugins(makeSite(), "/tmp");
+  registerCoreGenerators(scoped.generator);
   const names: string[] = [];
-  api.plugins.generators.forEach((fn, name) => names.push(name));
+  scoped.generator.generator.forEach((fn, name) => names.push(name));
   assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy"]);
 });
 
@@ -83,17 +82,21 @@ test("内置 generator 生成 virtual 页面（site 有 posts 时）", async () 
       [mkPage("a"), mkPage("b")],
     ),
   );
-  const api = initCorePlugins(site, "/tmp");
+  const { registries } = await initCorePlugins(site, "/tmp");
 
-  const home = api.plugins.generators.get("core:home")!;
+  const home = registries.generators.get("core:home")!;
   const homePages = await home(site);
   assert.ok(homePages.length >= 1);
   assert.ok(homePages.every((p) => p.collection === "core:virtual"));
 });
 
-test("api.site / api.theme 提供站点与主题", () => {
-  const api = initCorePlugins(makeSite(), "/tmp");
-  assert.equal(api.site, api.site);
-  assert.equal(api.site!.config.siteTitle, "t");
-  assert.equal(api.theme!.name, "default");
+test("scoped generator API 暴露 generator 与 helper，不暴露 hook/renderer", async () => {
+  const { scoped } = await initCorePlugins(makeSite(), "/tmp");
+  assert.ok(scoped.generator.generator);
+  assert.ok(scoped.generator.helper);
+  assert.equal((scoped.generator as any).hook, undefined);
+  assert.equal((scoped.generator as any).renderer, undefined);
+  // hook API 仅 hook
+  assert.ok(scoped.hook.hook);
+  assert.equal((scoped.hook as any).helper, undefined);
 });

@@ -3,15 +3,14 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import { build } from "esbuild";
-import { h } from "preact";
-import { render } from "preact-render-to-string";
-import type { LayoutProps, Theme } from "./types/theme.js";
-import { loadThemeConfig } from "./config.js";
+import type { Theme } from "../types/theme.js";
+import { loadThemeConfig } from "../config.js";
+
+export { renderPage } from "./render.js";
 
 /**
- * 主题加载与渲染
+ * 主题加载
  * Node 无法直接 require .ts/.tsx，核心用 esbuild 将主题入口 bundle 为 ESM 后 import。
- * 主题入口默认导出 `(api) => Theme`，与插件共享统一 api（可注册/使用 helper、generator 等）。
  */
 
 export interface LoadedTheme {
@@ -59,7 +58,7 @@ export function resolveThemeDir(themeName: string, projectRoot: string): string 
 
 /**
  * bundle 并加载主题，返回主题模块。
- * 主题入口默认导出 `(api) => Theme`（或直接导出 Theme 对象），api 与插件统一。
+ * 主题入口导出 Theme 对象（或 `(api) => Theme` 函数）。
  */
 export async function loadTheme(
   themeName: string,
@@ -123,29 +122,3 @@ export async function loadTheme(
 
   return { theme, themePath };
 }
-
-/**
- * 渲染单页：选择布局（精确 → default → page → 报错），preact-render-to-string 输出 HTML。
- */
-export function renderPage(
-  theme: Theme,
-  props: LayoutProps,
-): string {
-  const { layouts } = theme;
-  const layout =
-    layouts[props.page.layout] ?? layouts.default ?? layouts.page;
-  if (!layout) {
-    throw new Error(
-      `[${props.page.id}] 布局 "${props.page.layout}" 不存在，且主题无 default/page 布局回退`,
-    );
-  }
-  return "<!DOCTYPE html>\n" + render(h(layout as any, props));
-}
-
-/**
- * 计算主题资源输出前缀：
- * merge → /assets；namespace → /assets/<theme-name>
- */
-// export function themeAssetsPrefix(themeName: string, mode?: string): string {
-//   return mode === "namespace" ? `/assets/${themeName}` : "/assets";
-// }

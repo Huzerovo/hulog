@@ -1,7 +1,7 @@
 import type {
   GeneratorCallback,
   GeneratorRegistry,
-} from "./types/generator.js";
+} from "../types/generator.js";
 
 /**
  * 生成器注册表实现。

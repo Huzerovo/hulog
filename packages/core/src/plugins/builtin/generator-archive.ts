@@ -1,16 +1,16 @@
-import { VIRTUAL_PAGE_COLLECTION, type Page } from "../types/page.js";
-import type { PaginateOptions } from "../types/pagination.js";
-import { ARCHIVES_BASE } from "../types/config.js";
-import { Site } from "../types/site.js";
-import { PluginsAPI } from "../types/api.js";
+import { VIRTUAL_PAGE_COLLECTION, type Page } from "../../types/page.js";
+import type { PaginateOptions } from "../../types/pagination.js";
+import { ARCHIVES_BASE } from "../../types/config.js";
+import type { Site } from "../../types/site.js";
+import type { GeneratorAPI } from "../../types/api.js";
 
 /**
  * 归档生成器（参考 huzerovo scripts/generator/archive_page.js）：
  * - /archives/            全部文章按年份分组（layout: archives），含分页
  * - /archives/<year>/     单年归档（layout: archives）
  */
-export default function(plugins: PluginsAPI) {
-  const helper = plugins.helpers;
+export default function(api: GeneratorAPI) {
+  const helper = api.helper;
   const paginate = helper.get("paginate") as (
     posts: Page[],
     opts: PaginateOptions,
@@ -21,7 +21,7 @@ export default function(plugins: PluginsAPI) {
     n: number,
   ) => string;
 
-  plugins.generators.register("core:archives", (site: Site): Page[] => {
+  api.generator.register("core:archives", (site: Site): Page[] => {
     const posts = (site.collections.get("posts")?.getPages(true) ?? []).filter(
       (p) => p.date,
     );

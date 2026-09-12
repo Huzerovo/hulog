@@ -3,7 +3,6 @@ import type { Page } from "./types/page.js";
 import type { Site } from "./types/site.js";
 import type { SiteConfig } from "./types/config.js";
 import type { Collection } from "./types/collection.js";
-import { Theme } from "./types/theme.js";
 
 /**
  * Site 实现
@@ -12,11 +11,9 @@ export class SiteImpl implements Site {
   collections: Map<string, Collection> = new Map();
   private _assets: Asset[] = [];
   private _config: SiteConfig | undefined = void 0;
-  private _theme: Theme | undefined = void 0;
 
-  constructor(config: SiteConfig, theme: Theme) {
+  constructor(config: SiteConfig) {
     this._config = config;
-    this._theme = theme;
   }
 
   get pages(): Page[] {
@@ -51,10 +48,6 @@ export class SiteImpl implements Site {
 
   get config(): SiteConfig {
     return this._config!;
-  }
-
-  get theme(): Theme {
-    return this._theme!;
   }
 
   /** 由 build 阶段设置全部资源（专属 + 全局） */

@@ -1,6 +1,6 @@
-import { PluginsAPI } from "../types/api.js";
-import { VIRTUAL_PAGE_COLLECTION, type CategoryPath, type Page } from "../types/page.js";
-import type { PaginateOptions } from "../types/pagination.js";
+import type { GeneratorAPI } from "../../types/api.js";
+import { VIRTUAL_PAGE_COLLECTION, type CategoryPath, type Page } from "../../types/page.js";
+import type { PaginateOptions } from "../../types/pagination.js";
 
 /**
  * 分类/标签页生成器：
@@ -10,8 +10,8 @@ import type { PaginateOptions } from "../types/pagination.js";
  * 分类层级规则：每条分类路径的所有祖先也会生成页面（父分类页包含
  * 直接 + 间接子分类的文章，与 Hexo 行为一致）。
  */
-export default function(plugins: PluginsAPI) {
-  const helper = plugins.helpers;
+export default function(api: GeneratorAPI) {
+  const helper = api.helper;
   const paginate = helper.get("paginate") as (
     posts: Page[],
     opts: PaginateOptions,
@@ -28,7 +28,7 @@ export default function(plugins: PluginsAPI) {
     path: CategoryPath,
   ) => string;
 
-  plugins.generators.register("core:taxonomy", (site): Page[] => {
+  api.generator.register("core:taxonomy", (site): Page[] => {
     const posts = site.collections.get("posts")?.getPages(true) ?? [];
     if (posts.length === 0) return [];
     const perPage = site.config.perPage ?? 10;

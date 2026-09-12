@@ -4,7 +4,7 @@ import type { PaginateOptions } from "./types/pagination.js";
 /**
  * 分页工具（design-doc §4 generate：虚拟页面分页）。
  * pageUrl / paginate / pinSort 以核心 helper 形式注册（见 helpers.ts），
- * 插件与主题经 api.plugins.helper.get(...) 使用。
+ * 插件与主题经 api.helper.get(...) 使用。
  */
 
 /** 计算分页 URL：第 1 页返回 base，其余 base + format + N + "/" */

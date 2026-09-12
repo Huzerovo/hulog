@@ -48,7 +48,7 @@ function scaffoldSite(): string {
     root,
     "plugins/generator-test.ts",
     `export default function (api) {
-      api.plugins.generators.register("test:v", () => [{
+      api.generator.register("test:v", () => [{
         id: "virtual:test",
         collection: "core:virtual",
         sourcePath: null,

@@ -7,7 +7,7 @@ import { seqParse } from "./sequence/parse.js";
 import {
   loadTheme,
   renderPage,
-} from "./theme.js";
+} from "./theme/index.js";
 import {
   scanAssets,
   resolveAssetRef,
@@ -20,11 +20,13 @@ import type { Page } from "./types/page.js";
 import type { SiteConfig } from "./types/config.js";
 import { CONTENT_BASE } from "./types/config.js";
 import type { GeneratorCallback } from "./types/generator.js";
+import type { AssetRegistry, RenderContext } from "./types/renderer.js";
 import type { FileEntry, RenderResult } from "./types/sequence.js";
 import seqRead from "./sequence/read.js";
 import { seqCollect, collectVirtual } from "./sequence/collect.js";
 import { seqWrite } from "./sequence/write.js";
-import { initApi } from "./api.js";
+import { CoreApiImpl } from "./core-api.js";
+import { initCorePlugins, loadThemePlugins, loadSitePlugins } from "./plugins/index.js";
 import { seqGenerate } from "./sequence/generate.js";
 
 export interface BuildOptions {
@@ -67,14 +69,18 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   }
 
   // ---- site + init + 插件 ----
-  // site 需先于 plugins 创建：helpers 绑定 site，插件/主题经 api.site / api.theme 访问
-  const site = new SiteImpl(siteConfig, theme);
-  // NOTE: 目前设计上 api 是包含所有站点对象：site, theme （通过 site.theme 访问）以及 plugins，通过 api 能够访问所有对象。
-  // TODO: api 阶段与 plugins 初始化独立，在 api 初始化中加载插件。
-  const api = await initApi(site, cwd);
-  const renderers = api.plugins.renderers;
-  const generators = api.plugins.generators;
-  const hooks = api.plugins.hooks;
+  // site 需先于 plugins 创建：helpers 绑定 site，插件/主题经 api 访问
+  const site = new SiteImpl(siteConfig);
+  // 建注册表 + scoped API（内置 generator 在此注册）
+  const { registries, scoped } = await initCorePlugins(site, cwd);
+  // 先主题插件、后站点插件（站点优先级更高）
+  await loadThemePlugins(scoped, cwd, siteConfig.theme);
+  await loadSitePlugins(scoped, cwd, site);
+  // 主题布局使用的只读 API
+  const core = new CoreApiImpl(cwd, site, theme, registries.helpers);
+  const renderers = registries.renderers;
+  const generators = registries.generators;
+  const hooks = registries.hooks;
   buildLog("Loaded Plugins");
   await hooks.afterInit.call(site);
 
@@ -189,26 +195,27 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Finished process");
 
   // ---- render ----
-  // TODO: 重构 render 流程，传入参数暂定为：page, site, theme, context
   const resolveCtx: ResolveContext = {
     assetsDirAbs,
     assets,
     postDirByPageId: scanned.postDirByPageId,
   };
+  // 面向 renderer 的资源上下文（隐藏 ResolveContext 内部细节）
+  const assetRegistry: AssetRegistry = {
+    list: assets,
+    resolve: (ref, page) => resolveAssetRef(ref, page, resolveCtx),
+  };
+  const renderCtx: RenderContext = { config: siteConfig, assets: assetRegistry };
   const results: RenderResult[] = [];
   for (const page of allPages) {
     await hooks.beforeRender.call(page);
     // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
     resolveCover(page, resolveCtx);
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
-    // TODO: 考虑一下应该如何支持多种文件类型
     const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
     // NOTE: 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，渲染时间却到秒级了
-    const mdResult = await renderer(page.rawContent, page, {
-      config: siteConfig,
-      resolve: resolveCtx,
-    });
+    const mdResult = await renderer(page.rawContent, page, renderCtx);
     page.content = mdResult.html;
     page.metadata.toc = mdResult.toc;
     await hooks.afterRender.call(page);
@@ -216,7 +223,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     buildLog("render page: " + page.title);
     const html = renderPage(theme, {
       page,
-      api,
+      api: core,
     });
     results.push({ page, html });
   }

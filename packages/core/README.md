@@ -12,88 +12,95 @@
 src/
 ├── index.ts          # 公共 API 出口
 ├── build.ts          # 构建管线编排（唯一入口 build()）
-├── plugins.ts        # 插件目录扫描加载
-├── plugins/          # 核心内置 generator 插件
-├── sequence/         # read / parse 等分阶段实现
-├── config.ts         # 站点配置加载（cosmiconfig + jiti）
-├── config/define.ts  # defineConfig（应用默认值）
+├── core-api.ts       # CoreAPI（主题用）实现
+├── config.ts         # 站点/主题配置加载（cosmiconfig + jiti）
+├── path.ts           # 路径工具（toPosixPath）
+├── plugins/          # 插件系统
+│   ├── index.ts      # 发现/加载 + scoped API 组装 + 内置注册
+│   ├── generator.ts  # 生成器注册表
+│   ├── helper.ts     # helper 注册表 + 核心 helper
+│   ├── hook.ts       # tapable 异步钩子
+│   ├── renderer.ts   # 渲染器注册表
+│   └── builtin/      # 内置 generator（home/archive/taxonomy）
+├── theme/            # 主题系统
+│   ├── index.ts      # loadTheme / resolveThemeDir（esbuild bundle）
+│   └── render.ts     # renderPage（preact-render-to-string）
+├── sequence/         # read / parse / collect / generate / write
+├── site.ts           # Site 实现
+├── collection.ts     # Collection 实现
 ├── route.ts          # slug / URL / 路由占位符解析
 ├── category.ts       # 分类解析、分类树构建
 ├── pagination.ts     # 分页工具（以 helper 注册）
 ├── assets.ts         # 资源扫描与引用解析
-├── site.ts           # Site / Collection 实现
-├── theme.ts          # 主题加载（esbuild bundle）与渲染
 ├── markdown.ts       # unified/remark/rehype 渲染管线
-├── hook.ts           # tapable 风格异步钩子
-├── renderer.ts       # renderer 注册表实现
-├── runtime.ts        # helper 注册表（构建隔离）
-├── helpers.ts        # 内置核心 helper 注册
-├── path.ts           # 路径工具（toPosixPath）
-└── types/            # 全部公共类型定义（含 plugins/renderer/pagination）
+└── types/            # 全部公共类型定义（按域拆分）
 ```
 
 ## 构建管线
 
-`build()`（`build.ts`）按固定阶段顺序执行，每阶段前后有 hook（`beforeX` / `afterX`）：
+`build()`（`build.ts`）按固定阶段顺序执行，阶段边界触发 hook：
 
 ```
-init → read → parse → filter → generate → process → render → write
+init → read → parse → filter → collect①(物理) → generate → merge → collect②(虚拟) → process → render → write
 ```
 
 | 阶段 | 作用 | 输入/产物 |
 |------|------|-----------|
-| **init** | 创建 Site（插件已在 init 前加载） | SiteConfig → Site |
+| **init** | 加载主题、创建 Site、建注册表 + scoped API、加载插件 | SiteConfig → Site / CoreAPI |
 | **read** | 扫描内容目录 | 目录 → FileEntry[] |
-| **parse** | 单文件解析 | FileEntry → Page，聚合成 Collection |
-| **filter** | 过滤（生产删除 draft） | Collection[] |
-| **generate** | 插件生成虚拟页面 | Site → Page[] |
-| **process** | 处理资源（压缩等） | Asset[] |
+| **parse** | 单文件解析 | FileEntry → Page[]（物理页） |
+| **filter** | 过滤（生产删除 draft） | Page[] → filteredPages |
+| **collect①(物理)** | 物理页按 collection 分组 | filteredPages → Collection[] → site.collections |
+| **generate** | generator 基于 site 生成虚拟页 | Site → virtualPages |
+| **merge** | 物理 + 虚拟合并、URL 冲突检测 | → allPages |
+| **collect②(虚拟)** | 虚拟页挂入集合（动态建 core:virtual） | virtualPages → site.collections |
+| **process** | 扫描资源 + 主题资源（less 编译） | → site.assets |
 | **render** | Markdown → HTML，套用主题布局 | Page → { page, html } |
 | **write** | 写入 dist、复制 public/ | 结果 → 文件 |
 
 ### 关键实现细节
 
-- **插件 + 主题加载（init 之前）**：`build()` 开头扫描可配置目录（默认 `plugins/`）并加载主题模块，按文件名前缀识别类型注入统一 api，确保**全流程 hook（含 beforeInit/afterInit）生效**；主题可注册 generator 供 generate 阶段使用。
-- **hook 生命周期**：`initHooks()`（`build.ts`）创建 `beforeX`/`afterX` 全部异步钩子；插件经 `api.plugins.hook.*` 注册，核心在各阶段边界触发。
-- **生成器**（generate）：插件 `api.plugins.generator.register` 注册，返回无源文件的虚拟 Page，挂载到对应集合并参与 URL 冲突检测。
-- **renderer**（render）：渲染拆为 `beforeRender → render → afterRender`。`render` 为单一职责（Markdown → HTML+toc）、不可 hook、可被用户 renderer 覆盖（内置 `renderMarkdown` 为默认）；`beforeRender`/`afterRender` 可 hook。
-- **helper**：`api.plugins.helper.get(name)` 读取、`register(name, fn)` 注册；核心内置分类/分页/日期等 helper。
+- **插件 + 主题加载（init 阶段）**：`build()` 先加载主题并合并主题配置，创建 `SiteImpl`，再 `initCorePlugins()` 建注册表 + scoped API，`loadThemePlugins`/`loadSitePlugins` 加载插件，`new CoreApiImpl(...)` 得到主题用 `CoreAPI`；插件按文件名前缀注入**作用域化** API。
+- **hook 生命周期**：`initHooks()`（`hook.ts`）创建全部异步钩子；hook 插件经 `api.hook.*` 注册，核心在各阶段边界触发。
+- **生成器**（generate）：generator 插件经 `api.generator.register(name, (site) => Page[])` 注册，返回无源文件的虚拟 Page。
+- **renderer**（render）：`render` 为单一职责（Markdown → HTML+toc），经 `api.renderer.register` 覆盖默认；`beforeRender`/`afterRender` 可 hook。
+- **helper**：`api.helper.get(name)` 读取、`register(name, fn)` 注册；核心内置分类/分页/日期等 helper。
 - **草稿区**：`content/drafts/` 内文章强制 `draft`，生产阶段由 filter 剔除，dev 下经 `/draft/:slug/` 预览。
-- **URL 冲突检测**（`checkUrlConflicts`）：generate 阶段对全部页面 URL 去重校验。
+- **URL 冲突检测**（`checkUrlConflicts`）：merge 阶段对全部页面 URL 去重校验。
 
 ## 插件系统
 
-插件在可配置目录（默认 `plugins/`，经 `config.pluginsDir` 指定）中按文件名前缀自动发现，无需在配置中列举。每个插件默认导出 `(api) => void | Promise<void>`，`api` 为统一 `PluginAPI`（含 `plugins` 命名空间）：
+插件在可配置目录（默认 `plugins/`，经 `config.pluginsDir` 指定）中按文件名前缀自动发现，无需在配置中列举。每个插件默认导出 `(api) => void | Promise<void>`，`api` 按前缀**作用域化**（互不越权）：
 
 ```ts
-// plugins/generator-archive.ts      → api: GeneratorAPI
-// plugins/hook-search.ts            → api: HookAPI
-// plugins/renderer-custom.ts        → api: RendererAPI
+// plugins/generator-archive.ts  → api: GeneratorAPI  { config, cwd, generator, helper }
+// plugins/hook-search.ts        → api: HookAPI       { config, cwd, hook }
+// plugins/renderer-custom.ts    → api: RendererAPI   { config, cwd, renderer }
+// plugins/helper-my.ts          → api: HelperAPI     { config, cwd, helper }
 ```
 
 - 无前缀文件（共享工具等）不加载，但 **build 时警告**（`index.*` 主题入口除外）。
-- 所有插件共享统一 `api`：`config` / `cwd` / `site?`（afterInit 后可用）+ `api.plugins.{generator, hook, renderer, helper}`。
-- 注册统一为 registry 风格：`api.plugins.generator.register`、`api.plugins.renderer.register`、`api.plugins.helper.register/get`；hook 经 `api.plugins.hook.beforeX.tap()` / `api.plugins.hook.afterX.tap()`。
+- generator 可使用 helper，但**不能**触及 hooks/renderers；hook/renderer 也不能触及彼此。
 
 ```ts
 // generator
 import type { GeneratorAPI } from "@hulog/core";
 export default function (api: GeneratorAPI) {
-  api.plugins.generator.register("archive", (site) => []);
-  api.plugins.helper.register("myHelper", (x) => x);
-  const paginate = api.plugins.helper.get("paginate");
+  api.generator.register("archive", (site) => []);
+  api.helper.register("myHelper", (x) => x);
+  const paginate = api.helper.get("paginate");
 }
 
 // hook
 import type { HookAPI } from "@hulog/core";
 export default function (api: HookAPI) {
-  api.plugins.hook.afterWrite.tap("search", () => {});
+  api.hook.afterWrite.tap("search", () => {});
 }
 
 // renderer（覆盖默认 markdown 渲染）
 import type { RendererAPI } from "@hulog/core";
 export default function (api: RendererAPI) {
-  api.plugins.renderer.register("custom", (raw, page, ctx) => ({ html: "", toc: [] }));
+  api.renderer.register("markdown", (raw, page, ctx) => ({ html: "", toc: [] }));
 }
 ```
 
@@ -114,17 +121,18 @@ export default function (api: RendererAPI) {
 
 ## 主题系统
 
-- **加载**（`theme.ts` `loadTheme`）：`resolveThemeDir` 定位主题目录（`themes/<name>` → `node_modules/<name>` → 直接路径）；esbuild 将 `index.ts` bundle 为 ESM 后 import。主题入口默认导出 `(api) => Theme`，与插件共享统一 api（可注册/使用 helper、generator 等），并在 generate 之前加载。
+- **加载**（`theme/index.ts` `loadTheme`）：`resolveThemeDir` 定位主题目录（`themes/<name>` → `node_modules/<name>` → 直接路径）；esbuild 将 `index.ts` bundle 为 ESM 后 import；并合并 `theme.config.ts` 到 `theme.config`。主题入口导出 `Theme` 对象。
 - **preact 单实例**：preact 系列模块通过 alias + external 与核心进程共享同一实例，保证 `context`/`hooks` 与 `preact-render-to-string` 互通。
-- **helper 访问（无虚拟模块）**：`LayoutProps` 携带 `api`，主题根布局将其注入 Preact Context，组件经 `api.plugins.helper.get("themeAsset")("...")` 等使用核心/注册的 helper；不再依赖 `hulog:helpers` 虚拟模块。
+- **helper 访问（无虚拟模块）**：`LayoutProps = { page, api }`，`api` 为 `CoreAPI`（`api.site` / `api.theme.config` / `api.helper`）；主题根布局将 `api` 注入 Preact Context，组件经 `api.helper.get("themeAsset")("...")` 使用 helper。
 - **渲染**（`renderPage`）：按 `page.layout` 选择布局，回退链 `精确 → default → page`，preact-render-to-string 输出 HTML。
-- **资源输出**：主题 `assetsDir` 内资源并入站点；`assetsMode` 决定前缀（`merge → /assets`、`namespace → /assets/<theme>`）；`.less` 编译为 CSS（`_` 前缀 partial 仅作 @import 源）。
+- **资源输出**：主题 `assetsDir` 内资源并入站点；`themeAssetsMode` 决定前缀（`merge → /assets`、`namespace → /assets/<theme>`）；`.less` 编译为 CSS（`_` 前缀 partial 仅作 @import 源）。
 
 ## 资源处理
 
 - **扫描**（`assets.ts` `scanAssets`）：文章同名专属目录内文件 → 专属 Asset（URL = 页面 URL + 相对路径）；`assetsDir` 内文件 → 全局 Asset（`/assets/...`）；其他散落文件进 `stray` 警告列表。
 - **引用解析**（`resolveAssetRef`）：外部/锚点/查询原样；`/assets/` 校验存在；相对路径先查专属目录（命中保持相对引用）再查全局 `assetsDir`（命中重写为 `/assets/...`）；未命中返回 `null` 由调用方报错。
-- **process 阶段**：插件经 `api.plugins.hook.beforeProcess.tap()` / `afterProcess.tap()` 遍历并改写 `Asset[]`（如压缩）。
+- **renderer 资源上下文**：renderer 经 `RenderContext { config, assets: AssetRegistry }` 取配置、用 `assets.resolve(ref, page)` 解析引用（不再直接暴露 `ResolveContext`）。
+- **process 阶段**：hook 插件经 `api.hook.afterProcess.tap()` 遍历并改写 `Asset[]`（如压缩）。
 
 ## Markdown 渲染
 
@@ -152,4 +160,4 @@ remark-parse → remark-gfm → remark-math → remark-rehype(allowDangerousHtml
 - `pageUrl` / `paginate` / `pinSort` — 分页工具（以 helper 形式注册）。
 - `scanAssets` / `resolveAssetRef` — 资源工具。
 - `SiteImpl` / `CollectionImpl` / `AsyncHookImpl` — 实现类。
-- 统一 api：`PluginAPI` / `ThemeAPI`（`GeneratorAPI` / `HookAPI` / `RendererAPI` 为其别名）。
+- API 类型：`CoreAPI`（主题用：`site` / `theme` / `helper`）、`Registries`（内部编排）、`GeneratorAPI` / `HookAPI` / `RendererAPI` / `HelperAPI`（按插件类型作用域化）、`RuntimeContext`。

@@ -3,16 +3,16 @@ import {
   categoryPathToUrl,
   categoryPathToString,
   parseCategories,
-} from "./category.js";
-import { pageUrl, paginate, pinSort } from "./pagination.js";
-import type { HelperRegistry } from "./types/helper.js";
-import type { Page, PageBase } from "./types/page.js";
-import { VIRTUAL_PAGE_COLLECTION } from "./types/page.js";
-import type { Site } from "./types/site.js";
+} from "../category.js";
+import { pageUrl, paginate, pinSort } from "../pagination.js";
+import type { HelperRegistry } from "../types/helper.js";
+import type { Page, PageBase } from "../types/page.js";
+import { VIRTUAL_PAGE_COLLECTION } from "../types/page.js";
+import type { Site } from "../types/site.js";
 
 /**
  * 核心内置 helper 注册（每次构建独立注册表）。
- * 插件与主题经 api.plugins.helper.get(...) 使用。
+ * 插件与主题经 api.helper.get(...) 使用。
  */
 
 

@@ -1,11 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { HelperRegistryImpl, registerCoreHelpers } from "../src/helper.js";
+import { HelperRegistryImpl, registerCoreHelpers } from "../src/plugins/helper.js";
 import { SiteImpl } from "../src/site.js";
 import type { HelperRegistry } from "../src/types/helper.js";
 import type { SiteConfig } from "../src/types/config.js";
-import type { Theme } from "../src/types/theme.js";
 
 function makeSite(config: Partial<SiteConfig> = {}): SiteImpl {
   const cfg = {
@@ -15,7 +14,7 @@ function makeSite(config: Partial<SiteConfig> = {}): SiteImpl {
     collections: [],
     ...config,
   } as SiteConfig;
-  return new SiteImpl(cfg, { name: "default", layouts: {} } as Theme);
+  return new SiteImpl(cfg);
 }
 
 function registry(config?: Partial<SiteConfig>): HelperRegistry {

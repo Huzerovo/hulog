@@ -2,10 +2,9 @@ import type { Collection } from "./collection.js";
 import type { Page } from "./page.js";
 import type { Asset } from "./asset.js";
 import type { SiteConfig } from "./config.js";
-import type { Theme } from "./theme.js";
 
 /**
- * Site —— 全局站点对象
+ * Site —— 全局站点对象（Pages 与 SiteConfig 的访问接口）
  * init 阶段创建，贯穿整个构建生命周期。
  */
 export interface Site {
@@ -18,10 +17,6 @@ export interface Site {
   /** 获取全部文章（允许渲染草稿时也会包括草稿） */
   get posts(): Page[];
 
-  /** 全部已发布页面（过滤 draft） */
-  // NOTE: 这个是否需要存在？
-  // get publishedPages(): Page[];
-
   /** 全部资源（专属 + 全局），供插件枚举 */
   get assets(): Asset[];
 
@@ -29,7 +24,4 @@ export interface Site {
   getAssets(dir: string): Asset[];
 
   get config(): SiteConfig;
-
-  /** 站点主题对象（含 .config） */
-  get theme(): Theme;
 }
