@@ -141,12 +141,14 @@ export default function (api: RendererAPI) {
 ```
 remark-parse → remark-gfm → remark-math → remark-rehype(allowDangerousHtml)
   → rehype-raw → rehype-slug → 目录收集 → 资源引用解析
+  → rehype-mermaid（```mermaid → .mermaid 容器）
   → rehype-katex → @shikijs/rehype（构建时高亮）→ rehype-stringify
 ```
 
 - **代码高亮**：shiki 动态加载语言集合，模块级单例复用；`markdown.highlight`/`clientHighlight` 可开关。
 - **目录**：收集 h1–h3 生成 `toc`（跳过 GFM 脚注区块）。
 - **KaTeX**：`markdown.katex` 开关。
+- **Mermaid**：`markdown.mermaid` 开关（默认 true）。```mermaid 代码块被转为 `<pre class="mermaid">` 并跳过 shiki，由主题客户端按需加载 mermaid.js 渲染，并放入 Shadow DOM 隔离（固定浅色背景），支持滚轮缩放 / 拖拽平移（见 `example/themes/huzerovo`）。
 
 ## 公共 API（`index.ts`）
 

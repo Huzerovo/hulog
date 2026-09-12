@@ -10,7 +10,7 @@ import rehypeStringify from "rehype-stringify";
 import rehypeShikiFromHighlighter from "@shikijs/rehype/core";
 import { visit } from "unist-util-visit";
 import { toString } from "hast-util-to-string";
-import type { Root } from "hast";
+import type { Element, Root } from "hast";
 import { createHighlighterCoreSync, createJavaScriptRegexEngine, type HighlighterGeneric } from "shiki";
 import type { Page } from "./types/page.js";
 import type {
@@ -232,6 +232,28 @@ function rehypeResolveAssets(page: Page, assets: AssetRegistry): () => (tree: Ro
 }
 
 /**
+ * Mermaid：将 ```mermaid 代码块转为 <pre class="mermaid">，保留源码文本，
+ * 去掉 language- 类使 shiki 不再高亮；由主题在客户端调用 mermaid.run() 渲染。
+ */
+function rehypeMermaid(): () => (tree: Root) => void {
+  return () => (tree: Root): void => {
+    visit(tree, "element", (node: Element) => {
+      if (node.tagName !== "pre") return;
+      const code = node.children.find(
+        (c): c is Element => c.type === "element" && c.tagName === "code",
+      );
+      if (!code) return;
+      const cls = code.properties?.className;
+      const classes = Array.isArray(cls) ? cls : typeof cls === "string" ? [cls] : [];
+      if (!classes.includes("language-mermaid")) return;
+      // 保留源码文本，改为 mermaid 容器（去掉 language- 类，shiki 不再处理）
+      node.properties = { className: ["mermaid"] };
+      node.children = code.children;
+    });
+  };
+}
+
+/**
  * 渲染 Markdown → HTML + 目录
  */
 export async function renderMarkdown(
@@ -243,6 +265,7 @@ export async function renderMarkdown(
   const md = config.markdown ?? {};
   const useShiki = md.highlight !== false && !md.clientHighlight;
   const useKatex = md.katex !== false;
+  const useMermaid = md.mermaid !== false;
 
   const toc: TocEntry[] = [];
   const processor = unified().use(remarkParse).use(remarkGfm);
@@ -254,6 +277,8 @@ export async function renderMarkdown(
     .use(rehypeSlug)
     .use(rehypeCollectToc(toc) as unknown as Plugin)
     .use(rehypeResolveAssets(page, ctx.assets) as unknown as Plugin);
+  // Mermaid：在 shiki 之前把 mermaid 代码块转为 .mermaid 容器
+  if (useMermaid) processor.use(rehypeMermaid() as unknown as Plugin);
   // rehype-katex 内部固定 throwOnError: false（不对外暴露该选项）
   if (useKatex) processor.use(rehypeKatex as unknown as Plugin);
   if (useShiki) {

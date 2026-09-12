@@ -29,6 +29,8 @@ export interface MarkdownConfig {
   highlight?: boolean;
   /** 是否启用 KaTeX，默认 true */
   katex?: boolean;
+  /** 是否启用 Mermaid 图表（转为 .mermaid 容器，客户端渲染），默认 true */
+  mermaid?: boolean;
   /** 是否交由客户端高亮（配合主题引入 highlight.js），默认 false */
   clientHighlight?: boolean;
 }
