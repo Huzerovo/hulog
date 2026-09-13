@@ -18,7 +18,6 @@ import type { Site } from "../types/site.js";
 import type { GeneratorRegistry } from "../types/generator.js";
 import type { Renderer, RendererRegistry } from "../types/renderer.js";
 import type { HelperRegistry } from "../types/helper.js";
-import type { Hooks } from "../types/hook.js";
 import type {
   GeneratorAPI,
   HelperAPI,

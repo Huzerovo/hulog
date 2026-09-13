@@ -90,3 +90,33 @@ test("生产构建：草稿不进入构建，虚拟页进入 site.pages 并渲�
   // 输出为 index.html
   assert.ok(fs.existsSync(path.join(root, "dist", "virtual", "test", "index.html")));
 });
+
+test("写盘：URL 中的中文百分号编码还原为原始目录名", async () => {
+  const root = tmpRoot();
+  write(
+    root,
+    "blog.config.ts",
+    `export default {
+      siteTitle: "t",
+      theme: "default",
+      contentDir: "content",
+      collections: [
+        { name: "posts", sourceDir: "posts", routePattern: "/post/:slug/", sortBy: "date" },
+      ],
+    }`,
+  );
+  write(root, "themes/default/index.ts", `
+    export default { name: "default", layouts: { default: () => null } }`);
+  write(root, "content/posts/你好.md", "---\ntitle: 你好\ndate: 2026-01-01\ntags: [标签]\n---\nbody");
+
+  const result = await build({ cwd: root });
+  const page = result.pages.find((r) => r.page.slug === "你好");
+  assert.ok(page, "中文 slug 文章应进入构建结果");
+  // URL 仍保留百分号编码（供浏览器访问）
+  assert.equal(page!.page.url, "/post/%E4%BD%A0%E5%A5%BD/");
+  // 写盘使用原始中文目录名
+  assert.ok(fs.existsSync(path.join(root, "dist", "post", "你好", "index.html")));
+  assert.ok(!fs.existsSync(path.join(root, "dist", "post", "%E4%BD%A0%E5%A5%BD")));
+  // 虚拟页（标签）同理
+  assert.ok(fs.existsSync(path.join(root, "dist", "tags", "标签", "index.html")));
+});

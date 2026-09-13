@@ -41,12 +41,17 @@ export interface BuildResult {
   pages: { page: Page; html: string; }[];
 }
 
+let buildMiddleCount = 0;
+let isDev = false;
 function dumpMiddle(obj: any, file: string) {
+  if (!isDev) return;
+
   const cwd = process.cwd();
   const output = path.join(cwd, "buildMid");
+  buildMiddleCount += 1;
   fs.mkdirSync(output, { recursive: true });
   const jstr = JSON.stringify(obj);
-  fs.writeFileSync(path.join(output, file), jstr);
+  fs.writeFileSync(path.join(output, buildMiddleCount.toString() + '_' + file), jstr);
 }
 
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
@@ -65,6 +70,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // NOTE: 强制 dev 模式渲染草稿
   if (options.dev) {
+    isDev = true;
     siteConfig.renderDraft = true;
   }
 
@@ -255,6 +261,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterWrite.call();
   buildLog("Finished write");
 
+  buildMiddleCount = 0;
   return { config: siteConfig, site, pages: results };
 }
 
