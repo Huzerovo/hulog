@@ -90,7 +90,7 @@ export async function devCmd(opts: DevOptions) {
   // 首次构建（dev 模式：渲染草稿）
   await rebuild("initial");
 
-  await new Promise<void>((resolve) => server.listen(port, resolve));
+  await new Promise<void>((resolve) => server.listen(port,"0.0.0.0", resolve));
   console.log(`✓ dev server: http://localhost:${port}（草稿已启用渲染）`);
 
   // 监听变化 → 防抖重建

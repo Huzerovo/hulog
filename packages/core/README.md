@@ -148,7 +148,7 @@ remark-parse → remark-gfm → remark-math → remark-rehype(allowDangerousHtml
 - **代码高亮**：shiki 动态加载语言集合，模块级单例复用；`markdown.highlight`/`clientHighlight` 可开关。
 - **目录**：收集 h1–h3 生成 `toc`（跳过 GFM 脚注区块）。
 - **KaTeX**：`markdown.katex` 开关。
-- **Mermaid**：`markdown.mermaid` 开关（默认 true）。```mermaid 代码块被转为 `<pre class="mermaid">` 并跳过 shiki，由主题客户端按需加载 mermaid.js 渲染，并放入 Shadow DOM 隔离（固定浅色背景），支持滚轮缩放 / 拖拽平移 / 双击或按钮全屏（见 `example/themes/huzerovo`）。
+- **Mermaid**：`markdown.mermaid` 开关（默认 true）。```mermaid 代码块被转为 `<pre class="mermaid">` 并跳过 shiki，由主题客户端按需加载 mermaid.js 渲染，并放入 Shadow DOM 隔离（固定浅色背景），支持滚轮 / 双指缩放、拖拽平移、双击或按钮全屏（见 `example/themes/huzerovo`）。
 
 ## 公共 API（`index.ts`）
 
