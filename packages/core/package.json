@@ -1,6 +1,6 @@
 {
   "name": "@hulog/core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "生成器核心：内容模型、构建管线、插件系统、主题加载",
@@ -24,6 +24,7 @@
     "@shikijs/langs": "^4.4.2",
     "@shikijs/rehype": "^4.4.2",
     "@shikijs/themes": "^4.4.2",
+    "@tuyuritio/rehype-table-wrapper": "^1.0.1",
     "cosmiconfig": "^10.0.0",
     "esbuild": "^0.28.1",
     "gray-matter": "^4.0.3",

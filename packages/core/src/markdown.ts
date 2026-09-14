@@ -8,6 +8,7 @@ import rehypeSlug from "rehype-slug";
 import rehypeKatex from "rehype-katex";
 import rehypeStringify from "rehype-stringify";
 import rehypeShikiFromHighlighter from "@shikijs/rehype/core";
+import rehypeTableWrapper from "@tuyuritio/rehype-table-wrapper";
 import { visit } from "unist-util-visit";
 import { toString } from "hast-util-to-string";
 import type { Element, Root } from "hast";
@@ -274,6 +275,7 @@ export async function renderMarkdown(
   processor
     .use(remarkRehype, { allowDangerousHtml: true, footnoteLabel: "脚注" })
     .use(rehypeRaw)
+    .use(rehypeTableWrapper)
     .use(rehypeSlug)
     .use(rehypeCollectToc(toc) as unknown as Plugin)
     .use(rehypeResolveAssets(page, ctx.assets) as unknown as Plugin);
