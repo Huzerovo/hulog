@@ -19,6 +19,10 @@ export class GeneratorRegistryImpl implements GeneratorRegistry {
     return this.generators.get(name);
   }
 
+  get all(): Map<string, GeneratorCallback> {
+    return this.generators;
+  }
+
   forEach(callback: (value: GeneratorCallback, name: string) => void): void {
     this.generators.forEach((value, name) => callback(value, name));
   }

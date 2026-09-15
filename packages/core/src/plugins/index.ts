@@ -32,6 +32,7 @@ import { initHooks } from "./hook.js";
 import homeGenerator from "./builtin/generator-home.js";
 import archiveGenerator from "./builtin/generator-archive.js";
 import taxonomyGenerator from "./builtin/generator-taxonomy.js";
+import vpageGenerator from "./builtin/generator-vpage.js";
 import { renderMarkdown } from "../markdown.js";
 
 export type PluginKind = "generator" | "hook" | "renderer" | "helper";
@@ -90,6 +91,7 @@ export function registerCoreGenerators(api: GeneratorAPI): void {
   homeGenerator(api);
   archiveGenerator(api);
   taxonomyGenerator(api);
+  vpageGenerator(api);
 }
 
 /** 主题插件目录加载（build 阶段调用）：themes/<theme>/plugins/ 下的 generator-/hook- 等 */

@@ -3,6 +3,7 @@ import path from "node:path";
 import { toPosixPath } from "../path.js";
 import type { FileEntry } from "../types/sequence.js";
 
+// TODO: 使用 mime 判断？
 const FILETYPES: Record<string, string[]> = {
   "markdown": ["md"],
   "image": ["jpg"],
@@ -35,7 +36,7 @@ function scanContent(contentRoot: string, projectRoot: string): FileEntry[] {
 }
 
 function getFileType(basename: string): string {
-  for (const type in Object.keys(FILETYPES)) {
+  for (const type in FILETYPES) {
     const s = basename.split('.');
     const ext = s[s.length - 1] || "";
     if (ext === "") return "unknow";

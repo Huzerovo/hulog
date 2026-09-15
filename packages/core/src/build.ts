@@ -19,7 +19,6 @@ import type { Asset } from "./types/asset.js";
 import type { Page } from "./types/page.js";
 import type { SiteConfig } from "./types/config.js";
 import { CONTENT_BASE } from "./types/config.js";
-import type { GeneratorCallback } from "./types/generator.js";
 import type { AssetRegistry, RenderContext } from "./types/renderer.js";
 import type { FileEntry, RenderResult } from "./types/sequence.js";
 import seqRead from "./sequence/read.js";
@@ -132,9 +131,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // ---- generate ----
   // 基于物理集合生成虚拟页面（archives / tagcloud 等）；虚拟页不依赖虚拟集合
   // generator 逐个执行（支持异步，串行 await）；站点/主题插件同名注册可覆盖内置
-  const callbacks: GeneratorCallback[] = [];
-  generators.forEach((fn) => callbacks.push(fn));
-  const virtualPages: Page[] = await seqGenerate(site, callbacks);
+  const virtualPages: Page[] = await seqGenerate(site, generators);
   await hooks.afterGenerate.call(virtualPages);
   dumpMiddle(virtualPages, "generate_Page_virtualPages.json");
   buildLog("Finished generate");

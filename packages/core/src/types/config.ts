@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "./collection.js";
+import { PageBase } from "./page.js";
 
 /** 主题资源输出模式 */
 export type ThemeAssetsMode = "merge" | "namespace";
@@ -107,6 +108,9 @@ export interface SiteConfig {
 
   /** 插件目录（相对项目根，默认 "plugins"），自动按前缀发现 generator-/hook-/renderer- 插件 */
   pluginsDir?: string;
+
+  /** */
+  virtualPages: PageBase[];
 }
 
 /**

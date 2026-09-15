@@ -10,5 +10,7 @@ export interface GeneratorRegistry {
 
   get(name: string): GeneratorCallback | undefined;
 
+  get all(): Map<string, GeneratorCallback>;
+
   forEach(callback: (value: GeneratorCallback, name: string) => void): void;
 }
