@@ -101,9 +101,14 @@ test("slug 缺省用文件名，title 缺省用 slug", () => {
   assert.equal(p.title, "hello");
 });
 
-test("cover 支持单路径与候选数组", () => {
+test("cover 仅接受单个字符串", () => {
   const single = parse("posts/a.md", '---\ntitle: A\ndate: 2026-01-01\ncover: a.png\n---\n');
   assert.equal(single.cover, "a.png");
   const multi = parse("posts/b.md", '---\ntitle: B\ndate: 2026-01-01\ncover: [a.png, b.png]\n---\n');
-  assert.deepEqual(multi.cover, ["a.png", "b.png"]);
+  assert.equal(multi.cover, undefined);
+});
+
+test("updated 缺省回退 date", () => {
+  const p = parse("posts/a.md", '---\ntitle: A\ndate: 2026-01-01\n---\n');
+  assert.equal(localDate(p.updated), "2026-01-01");
 });

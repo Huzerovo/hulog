@@ -20,7 +20,6 @@ const page: Page = {
   collection: "posts",
   sourcePath: null,
   url: "/post/p/",
-  aliases: [],
   title: "p",
   tags: [],
   categories: [],

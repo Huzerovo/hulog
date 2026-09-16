@@ -28,7 +28,6 @@ function mkPage(id: string): Page {
     collection: "posts",
     sourcePath: `/content/posts/${id}.md`,
     url: `/post/${id}/`,
-    aliases: [],
     title: id,
     date: new Date("2026-01-01"),
     tags: [],
@@ -61,7 +60,7 @@ test("initCorePlugins 注册内置 generator（core: 前缀）", async () => {
   const { registries } = await initCorePlugins(makeSite(), "/tmp");
   const names: string[] = [];
   registries.generators.forEach((fn, name) => names.push(name));
-  assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy"]);
+  assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy", "core:vpage"]);
 });
 
 test("registerCoreGenerators 可重复注册（幂等）", async () => {
@@ -69,7 +68,7 @@ test("registerCoreGenerators 可重复注册（幂等）", async () => {
   registerCoreGenerators(scoped.generator);
   const names: string[] = [];
   scoped.generator.generator.forEach((fn, name) => names.push(name));
-  assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy"]);
+  assert.deepEqual(names, ["core:home", "core:archives", "core:taxonomy", "core:vpage"]);
 });
 
 test("内置 generator 生成 virtual 页面（site 有 posts 时）", async () => {

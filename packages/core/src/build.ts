@@ -212,8 +212,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const results: RenderResult[] = [];
   for (const page of allPages) {
     await hooks.beforeRender.call(page);
-    // 解析 cover（§3.2：parse 后按 9.3 规则解析为最终 URL）
-    resolveCover(page, resolveCtx);
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
     const renderer = renderers.get('markdown');
     if (!renderer) throw new Error("未注册任何 renderer");
@@ -275,23 +273,6 @@ function checkUrlConflicts(pages: Page[]) {
     }
     seen.set(key, p.id);
   }
-}
-
-function resolveCover(page: Page, ctx: ResolveContext) {
-  if (!page.cover) return;
-  const resolveOne = (ref: string): string => {
-    if (ref.startsWith("/") || /^https?:|^\/\//.test(ref)) return ref;
-    const resolved = resolveAssetRef(ref, page, ctx);
-    if (resolved === null) {
-      throw new Error(
-        `[${page.id}] cover 引用未命中任何资源: "${ref}"（已在文章专属目录与全局 assetsDir 查找）`,
-      );
-    }
-    return resolved;
-  };
-  page.cover = Array.isArray(page.cover)
-    ? page.cover.map(resolveOne)
-    : resolveOne(page.cover);
 }
 
 function copyDir(src: string, dest: string) {

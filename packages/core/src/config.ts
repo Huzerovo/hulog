@@ -62,6 +62,7 @@ export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
     renderDraft: false,
     archivesDir: ARCHIVES_BASE,
     paginationDir: "page",
+    virtualPages: [],
   };
 
   const result = await explorer.search(cwd);

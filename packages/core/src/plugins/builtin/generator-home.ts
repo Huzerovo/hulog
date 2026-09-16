@@ -34,7 +34,6 @@ export default function(api: GeneratorAPI) {
         collection: VIRTUAL_PAGE_COLLECTION,
         sourcePath: null,
         url: pageUrl("/", format, pagination.current),
-        aliases: [],
         title: "首页",
         tags: [],
         categories: [],

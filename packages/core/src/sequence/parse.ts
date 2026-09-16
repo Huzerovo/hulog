@@ -59,7 +59,7 @@ export function parseFile(
   // date：front-matter → 文件名前缀
   let date = toDate(fm.date);
   if (!date && datePrefix) date = new Date(`${datePrefix}T00:00:00`);
-  const updated = toDate(fm.updated);
+  const updated = toDate(fm.updated) ?? date;
 
   // 集合需要日期时缺失即报错
   const routePattern = collectionConfig.routePattern ?? "/:collection/:slug/";
@@ -106,17 +106,9 @@ export function parseFile(
     draft,
     tags: toStringArray(fm.tags),
     categories: parseCategories(fm.categories),
-    link: typeof fm.link === "string" ? fm.link : undefined,
-    cover: Array.isArray(fm.cover)
-      ? fm.cover.map(String)
-      : typeof fm.cover === "string"
-        ? fm.cover
-        : undefined,
-    excerpt: typeof fm.excerpt === "string" ? fm.excerpt : "",
     // 构建生成选项
     collection: collectionName,
     sourcePath: absPath,
-    aliases: [],
     slug,
     rawContent: content,
     content: "",

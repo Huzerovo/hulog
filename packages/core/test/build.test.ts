@@ -53,7 +53,6 @@ function scaffoldSite(): string {
         collection: "core:virtual",
         sourcePath: null,
         url: "/virtual/test",
-        aliases: [],
         title: "V",
         tags: [],
         categories: [],

@@ -29,7 +29,6 @@ function makePage(id: string, sourcePath: string | null, url: string): Page {
     collection: "posts",
     sourcePath,
     url,
-    aliases: [],
     title: id,
     tags: [],
     categories: [],

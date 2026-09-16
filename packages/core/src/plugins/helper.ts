@@ -95,28 +95,11 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
     return mode === "namespace" ? `/assets/${themeName}/${s}` : `/assets/${s}`;
   });
 
-  /** 封面确定性选择：单封面直接返回；多封面基于 slug 哈希取模 */
-  registry.register(
-    "pickCover",
-    (page: { cover?: string | string[]; slug?: string; }) => {
-      if (!page.cover) return null;
-      const list = Array.isArray(page.cover) ? page.cover : [page.cover];
-      if (list.length === 0) return null;
-      if (list.length === 1) return list[0];
-      let hash = 0;
-      const slug = page.slug ?? "";
-      for (let i = 0; i < slug.length; i++) {
-        hash = (hash * 31 + slug.charCodeAt(i)) >>> 0;
-      }
-      return list[hash % list.length]!;
-    },
-  );
   registry.register("virtualPage", (page: PageBase) => {
     return {
       ...page,
       collection: VIRTUAL_PAGE_COLLECTION,
       sourcePath: "",
-      aliases: [],
       slug: "",
       rawContent: "",
       content: "",

@@ -19,9 +19,6 @@ export const RESERVED_KEYS = new Set([
   "slug",
   "layout",
   "draft",
-  "excerpt",
-  "link",
-  "cover",
   "permalink",
 ]);
 
@@ -66,12 +63,6 @@ export interface PagePostOptional {
   tags?: string[];
   // 文章分类
   categories?: CategoryPath[];
-  // 外链，用于外部文章
-  link?: string;
-  // 封面
-  cover?: string | string[];
-  // 文章摘要
-  excerpt?: string;
 }
 
 // 通用的一般选项，一般用于构建过程
@@ -80,8 +71,6 @@ export interface PageOptional {
   collection: string;
   // 源文件绝对路径；虚拟页面（生成器创建）为 null
   sourcePath: string | null;
-  // 替代 URL 列表（如日期路径、别名等），用于生成额外页面或重定向 
-  aliases: string[];
   // 自定义 slug，用于生成 URL 的路径片段，默认取自文件名 
   slug: string;
   // 文章原始内容

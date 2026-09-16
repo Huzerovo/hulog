@@ -56,16 +56,6 @@ test("核心 helpers: themeAsset 前缀随 themeAssetsMode / theme 名", () => {
   assert.equal(taNs("x.css"), "/assets/default/x.css");
 });
 
-test("核心 helpers: pickCover 确定性选择", () => {
-  const reg = registry();
-  const pick = reg.get("pickCover")!;
-  assert.equal(pick({ cover: "a.png", slug: "s" }), "a.png");
-  assert.equal(pick({ cover: undefined, slug: "s" }), null);
-  const first = pick({ cover: ["a.png", "b.png"], slug: "hello" });
-  assert.ok(["a.png", "b.png"].includes(first));
-  assert.equal(pick({ cover: ["a.png", "b.png"], slug: "hello" }), first);
-});
-
 test("核心 helpers: urlFor 补前导斜杠", () => {
   const reg = registry();
   assert.equal(reg.get("urlFor")!("a/b"), "/a/b");
