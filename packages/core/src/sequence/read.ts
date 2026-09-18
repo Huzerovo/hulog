@@ -9,7 +9,18 @@ const FILETYPES: Record<string, string[]> = {
   "image": ["jpg"],
 };
 
-function scanContent(contentRoot: string, projectRoot: string): FileEntry[] {
+const POSTS_TYPE = ["markdown"];
+const ASSETS_TYPE = ["image"];
+
+export function isPosts(file: FileEntry) {
+  return POSTS_TYPE.indexOf(file.type) !== -1;
+}
+
+export function isAssets(file: FileEntry) {
+  return !(ASSETS_TYPE.indexOf(file.type) === -1);
+}
+
+export default function seqRead(contentRoot: string, projectRoot: string): FileEntry[] {
   if (!fs.existsSync(contentRoot)) {
     throw new Error(`内容目录不存在: ${contentRoot}`);
   }
@@ -20,13 +31,16 @@ function scanContent(contentRoot: string, projectRoot: string): FileEntry[] {
       if (entry.isDirectory()) {
         walk(abs);
       } else if (entry.isFile()) {
-        const isMd = /\.md$/i.test(entry.name);
+        const ft = getFileType(entry.name);
+        const isPost = POSTS_TYPE.indexOf(ft) !== -1;
 
         files.push({
           path: toPosixPath(path.relative(projectRoot, abs)),
           absolutePath: abs,
-          isAsset: !isMd,
-          type: getFileType(entry.name)
+          type: ft,
+          isAsset: !isPost,
+          // 仅资源文件拥有
+          isExclusive: isPost ? undefined : true,
         });
       }
     }
@@ -45,8 +59,4 @@ function getFileType(basename: string): string {
     }
   }
   return "unknow";
-}
-
-export default function seqRead(root: string, cwd: string): FileEntry[] {
-  return scanContent(root, cwd);
 }

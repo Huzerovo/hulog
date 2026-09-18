@@ -8,6 +8,8 @@ export interface FileEntry {
   absolutePath: string;
   /** 是否为资源文件（非 Markdown） */
   isAsset: boolean;
+  /** 是否为专属资源（仅资源文件拥有） */
+  isExclusive?: boolean;
   /** 文件类型 */
   type: string;
 }
