@@ -27,6 +27,7 @@ import { seqWrite } from "./sequence/write.js";
 import { CoreApiImpl } from "./core-api.js";
 import { initCorePlugins, loadThemePlugins, loadSitePlugins } from "./plugins/index.js";
 import { seqGenerate } from "./sequence/generate.js";
+import { Logger } from "./utils.js";
 
 export interface BuildOptions {
   cwd?: string;
@@ -54,8 +55,13 @@ function dumpMiddle(obj: any, file: string) {
 }
 
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
+  const buildLogger = Logger.getLogger("core:build");
+  buildLogger.setLevel('debug');
+  buildLogger.start();
+
+  const buildLog = (msg: string) => buildLogger.info(msg);
+
   // 考虑创建一个 utils.logger ？
-  const buildLog = (msg: string) => console.log("  [build]: " + msg);
   // NOTE: 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写，另外 CLI build 命令暂时没有添加参数改写的功能，已做标记，记得添加
   const cwd = path.resolve(options.cwd ?? process.cwd());
 
@@ -257,6 +263,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Finished write");
 
   buildMiddleCount = 0;
+  buildLogger.end();
   return { config: siteConfig, site, pages: results };
 }
 
