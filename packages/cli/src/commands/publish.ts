@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import { loadSiteConfig } from "@hulog/core";
+import { Logger, loadSiteConfig } from "@hulog/core";
 import { slugify } from "./new.js";
 
 export interface PublishOptions {
@@ -12,13 +12,14 @@ export interface PublishOptions {
 }
 
 export async function publishCmd(opts: PublishOptions) {
+  const logger = Logger.getLogger("cli:publish");
   const cwd = process.cwd();
   const config = await loadSiteConfig(cwd);
   const contentRoot = path.join(cwd, config.contentDir ?? "content");
   const draftsDir = path.join(contentRoot, "drafts");
 
   if (!fs.existsSync(draftsDir)) {
-    console.error("草稿区不存在: content/drafts/");
+    logger.error("草稿区不存在: content/drafts/");
     process.exit(1);
   }
 
@@ -26,7 +27,7 @@ export async function publishCmd(opts: PublishOptions) {
   const targetName = opts.collection ?? "posts";
   const col = config.collections.find((c) => c.name === targetName);
   if (!col) {
-    console.error(
+    logger.error(
       `目标集合 "${targetName}" 不存在（可用 --collection 指定，当前集合: ${config.collections.map((c: { name: string }) => c.name).join(", ")}）`,
     );
     process.exit(1);
@@ -46,17 +47,17 @@ export async function publishCmd(opts: PublishOptions) {
     const slug = slugify(opts.slug);
     const match = drafts.find((f) => f.replace(/\.md$/i, "") === slug);
     if (!match) {
-      console.error(`草稿不存在: ${slug}（可用 --all 发布全部）`);
+      logger.error(`草稿不存在: ${slug}（可用 --all 发布全部）`);
       process.exit(1);
     }
     targets = [match];
   } else {
-    console.error("请指定草稿 slug 或使用 --all");
+    logger.error("请指定草稿 slug 或使用 --all");
     process.exit(1);
   }
 
   if (targets.length === 0) {
-    console.log("草稿区为空，无内容可发布");
+    logger.info("草稿区为空，无内容可发布");
     return;
   }
 
@@ -65,7 +66,7 @@ export async function publishCmd(opts: PublishOptions) {
     const slug = file.replace(/\.md$/i, "");
     const dest = path.join(targetDir, file);
     if (fs.existsSync(dest)) {
-      console.error(`✗ 冲突：目标已存在同名文件，已跳过: ${path.relative(cwd, dest)}`);
+      logger.error(`冲突：目标已存在同名文件，已跳过: ${path.relative(cwd, dest)}`);
       continue;
     }
 
@@ -87,6 +88,6 @@ export async function publishCmd(opts: PublishOptions) {
       fs.renameSync(assetDir, path.join(targetDir, slug));
     }
 
-    console.log(`✓ 已发布: ${path.relative(cwd, dest)}`);
+    logger.info(`已发布: ${path.relative(cwd, dest)}`);
   }
 }

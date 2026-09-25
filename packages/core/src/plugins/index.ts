@@ -29,6 +29,7 @@ import { HelperRegistryImpl, registerCoreHelpers } from "./helper.js";
 import { GeneratorRegistryImpl } from "./generator.js";
 import { RendererRegistryImpl } from "./renderer.js";
 import { initHooks } from "./hook.js";
+import { Logger } from "../utils.js";
 import homeGenerator from "./builtin/generator-home.js";
 import archiveGenerator from "./builtin/generator-archive.js";
 import taxonomyGenerator from "./builtin/generator-taxonomy.js";
@@ -120,7 +121,8 @@ export async function loadPlugins(
   if (!fs.existsSync(pluginsDir)) {
     return;
   }
-  console.warn(`[warn] 加载插件：${pluginsDir}`);
+  const pluginLogger = Logger.getLogger("core:plugins");
+  pluginLogger.warn(`加载插件：${pluginsDir}`);
   const jiti = createJiti(import.meta.url, { interopDefault: true });
   const files = fs
     .readdirSync(pluginsDir, { withFileTypes: true })
@@ -132,7 +134,7 @@ export async function loadPlugins(
     const m = PLUGIN_PREFIX_RE.exec(name);
     if (!m) {
       // 无前缀文件：非插件（工具/共享模块），忽略并警告
-      console.warn(`[warn] 插件目录中 "${name}" 无类型前缀，已忽略（需 generator- / hook- / renderer- / helper- 前缀）`);
+      pluginLogger.warn(`插件目录中 "${name}" 无类型前缀，已忽略（需 generator- / hook- / renderer- / helper- 前缀）`);
       continue;
     }
     const kind = m[1] as PluginKind;
@@ -141,12 +143,12 @@ export async function loadPlugins(
     try {
       mod = await jiti.import(file);
     } catch (err) {
-      console.warn(`[warn] 插件加载失败，已跳过：${name}\n  ${(err as Error).message}`);
+      pluginLogger.warn(`插件加载失败，已跳过：${name}\n  ${(err as Error).message}`);
       continue;
     }
     const fn = (mod as { default?: unknown; }).default ?? mod;
     if (typeof fn !== "function") {
-      console.warn(`[warn] 插件 "${name}" 未导出函数，已跳过`);
+      pluginLogger.warn(`插件 "${name}" 未导出函数，已跳过`);
       continue;
     }
     await fn(scoped[kind]);

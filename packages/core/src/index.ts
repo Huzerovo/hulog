@@ -46,6 +46,7 @@ export {
   type ScopedAPIs,
 } from "./plugins/index.js";
 export { CoreApiImpl } from "./core-api.js";
+export { Logger, type LogLevel } from "./utils.js";
 export {
   scanAssets,
   resolveAssetRef,

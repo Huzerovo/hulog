@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Logger } from "@hulog/core";
 
 const CONFIG_TEMPLATE = `
 export default {
@@ -47,9 +48,10 @@ export default {
 `;
 
 export function initCmd(dir: string) {
+  const logger = Logger.getLogger("cli:init");
   const target = path.resolve(process.cwd(), dir);
   if (fs.existsSync(path.join(target, "blog.config.ts"))) {
-    console.error("目标目录已存在 blog.config.ts，已中止");
+    logger.error("目标目录已存在 blog.config.ts，已中止");
     process.exit(1);
   }
   const dirs = [
@@ -73,6 +75,6 @@ export function initCmd(dir: string) {
     path.join(target, ".gitignore"),
     "node_modules/\ndist/\n",
   );
-  console.log(`✓ 站点已创建: ${target}`);
-  console.log("  下一步：将主题放入 themes/ 目录后运行 " + process.title + " dev");
+  logger.info(`站点已创建: ${target}`);
+  logger.info("下一步：将主题放入 themes/ 目录后运行 " + process.title + " dev");
 }
