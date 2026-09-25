@@ -1,6 +1,6 @@
 {
   "name": "@hulog/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "生成器 CLI：init/dev/build/clean/new（开发服务器与热重载）",
