@@ -27,6 +27,7 @@ import { seqWrite } from "./sequence/write.js";
 import { CoreApiImpl } from "./core-api.js";
 import { initCorePlugins, loadThemePlugins, loadSitePlugins } from "./plugins/index.js";
 import { seqGenerate } from "./sequence/generate.js";
+import { Logger } from "./utils.js";
 
 export interface BuildOptions {
   cwd?: string;
@@ -54,8 +55,10 @@ function dumpMiddle(obj: any, file: string) {
 }
 
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
-  // 考虑创建一个 utils.logger ？
-  const buildLog = (msg: string) => console.log("  [build]: " + msg);
+  const buildLogger = Logger.getLogger("core:build");
+
+  const buildLog = (msg: string) => buildLogger.info(msg);
+
   // NOTE: 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写，另外 CLI build 命令暂时没有添加参数改写的功能，已做标记，记得添加
   const cwd = path.resolve(options.cwd ?? process.cwd());
 
@@ -191,8 +194,8 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const assets = site.assets;
   await hooks.afterProcess.call(assets);
   if (scanned.stray.length > 0) {
-    console.warn(
-      `[warn] 以下散落文件未归属任何文章或全局资源，已忽略：\n  ${scanned.stray.join("\n  ")}`,
+    buildLogger.warn(
+      `以下散落文件未归属任何文章或全局资源，已忽略：\n  ${scanned.stray.join("\n  ")}`,
     );
   }
   buildLog("Finished process");
@@ -210,6 +213,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   };
   const renderCtx: RenderContext = { config: siteConfig, assets: assetRegistry };
   const results: RenderResult[] = [];
+  const renderLogger = Logger.getLogger("core:build:render");
   for (const page of allPages) {
     await hooks.beforeRender.call(page);
     // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
@@ -221,7 +225,8 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     page.metadata.toc = mdResult.toc;
     await hooks.afterRender.call(page);
 
-    buildLog("render page: " + page.title);
+
+    renderLogger.info("render page: " + page.title);
     const html = renderPage(theme, {
       page,
       api: core,

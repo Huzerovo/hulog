@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadSiteConfig } from "@hulog/core";
+import { Logger, loadSiteConfig } from "@hulog/core";
 
 export interface NewOptions {
   title: string;
@@ -20,6 +20,7 @@ export function slugify(title: string): string {
 }
 
 export async function newCmd(opts: NewOptions) {
+  const logger = Logger.getLogger("cli:new");
   const cwd = process.cwd();
   const config = await loadSiteConfig(cwd);
   const draftByDefault = opts.draft !== false;
@@ -34,20 +35,20 @@ export async function newCmd(opts: NewOptions) {
       fs.mkdirSync(draftsDir, { recursive: true });
       const file = path.join(draftsDir, slugify(opts.title) + ".md");
       writeDraft(file, opts.title);
-      console.log(`✓ 草稿已创建: ${path.relative(cwd, file)}`);
+      logger.info(`草稿已创建: ${path.relative(cwd, file)}`);
       return;
     }
     // 直接发布：默认第一个集合
     collectionName = config.collections[0]?.name;
     if (!collectionName) {
-      console.error("未配置集合，无法创建文章");
+      logger.error("未配置集合，无法创建文章");
       process.exit(1);
     }
   }
 
   const col = config.collections.find((c) => c.name === collectionName);
   if (!col) {
-    console.error(`集合不存在: ${collectionName}`);
+    logger.error(`集合不存在: ${collectionName}`);
     process.exit(1);
   }
   const dir = path.join(contentRoot, col.sourceDir);
@@ -55,7 +56,7 @@ export async function newCmd(opts: NewOptions) {
   const slug = slugify(opts.title);
   const file = path.join(dir, slug + ".md");
   if (fs.existsSync(file)) {
-    console.error(`文件已存在: ${path.relative(cwd, file)}`);
+    logger.error(`文件已存在: ${path.relative(cwd, file)}`);
     process.exit(1);
   }
   const fm: string[] = [`title: ${JSON.stringify(opts.title)}`];
@@ -66,7 +67,7 @@ export async function newCmd(opts: NewOptions) {
     file,
     `---\n${fm.join("\n")}\n---\n\n`,
   );
-  console.log(`✓ 文章已创建: ${path.relative(cwd, file)}`);
+  logger.info(`文章已创建: ${path.relative(cwd, file)}`);
 }
 
 function writeDraft(file: string, title: string) {

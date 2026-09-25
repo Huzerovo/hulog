@@ -3,7 +3,7 @@ import path from "node:path";
 import http from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import chokidar from "chokidar";
-import { build } from "@hulog/core";
+import { build, Logger } from "@hulog/core";
 
 export interface DevOptions {
   base: string;
@@ -38,6 +38,7 @@ const RELOAD_SCRIPT = (port: number) => `<script>
 </script>`;
 
 export async function devCmd(opts: DevOptions) {
+  const logger = Logger.getLogger("cli:dev");
   const cwd = opts.base;
   const port = opts.port;
   const distDir = path.join(cwd, "dist");
@@ -91,7 +92,7 @@ export async function devCmd(opts: DevOptions) {
   await rebuild("initial");
 
   await new Promise<void>((resolve) => server.listen(port,"0.0.0.0", resolve));
-  console.log(`✓ dev server: http://localhost:${port}（草稿已启用渲染）`);
+  logger.info(`dev server: http://localhost:${port}（草稿已启用渲染）`);
 
   // 监听变化 → 防抖重建
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -109,7 +110,7 @@ export async function devCmd(opts: DevOptions) {
   watcher.on("all", (_event, file) => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      rebuild("change").catch((e) => console.error("[rebuild failed]", e));
+      rebuild("change").catch((e) => logger.error(`重建失败: ${(e as Error).message}`));
     }, 200);
   });
 
@@ -118,11 +119,11 @@ export async function devCmd(opts: DevOptions) {
     try {
       const result = await build({ cwd, dev: true });
       notifyReload();
-      console.log(
+      logger.info(
         `[${reason}] 重建完成: ${result.pages.length} 页 (${Date.now() - start}ms)`,
       );
     } catch (e) {
-      console.error(`[${reason}] 构建失败:`, (e as Error).message);
+      logger.error(`[${reason}] 构建失败: ${(e as Error).message}`);
       // 构建失败也通知刷新，让浏览器显示错误页
       notifyReload();
     }
