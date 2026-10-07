@@ -41,19 +41,6 @@ export interface BuildResult {
   pages: { page: Page; html: string; }[];
 }
 
-let buildMiddleCount = 0;
-let isDev = false;
-function dumpMiddle(obj: any, file: string) {
-  if (!isDev) return;
-
-  const cwd = process.cwd();
-  const output = path.join(cwd, "buildMid");
-  buildMiddleCount += 1;
-  fs.mkdirSync(output, { recursive: true });
-  const jstr = JSON.stringify(obj);
-  fs.writeFileSync(path.join(output, buildMiddleCount.toString() + '_' + file), jstr);
-}
-
 export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const buildLogger = Logger.getLogger("core:build");
 
@@ -61,6 +48,16 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // NOTE: 注意，cwd 默认为 process.cwd()，但是可以被 CLI dev --base 参数改写，另外 CLI build 命令暂时没有添加参数改写的功能，已做标记，记得添加
   const cwd = path.resolve(options.cwd ?? process.cwd());
+
+  // 调试转储：dev 模式下把各阶段中间结果写入 <cwd>/buildMid（仅 dev 生效）
+  let dumpCount = 0;
+  const dumpMiddle = (obj: unknown, file: string) => {
+    if (!options.dev) return;
+    const output = path.join(cwd, "buildMid");
+    dumpCount += 1;
+    fs.mkdirSync(output, { recursive: true });
+    fs.writeFileSync(path.join(output, `${dumpCount}_${file}`), JSON.stringify(obj));
+  };
 
   // NOTE: siteConfig 在 loadSiteConfig 应该被完全赋值
   // TODO: 写一个 test 用于验证
@@ -72,7 +69,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
 
   // NOTE: 强制 dev 模式渲染草稿
   if (options.dev) {
-    isDev = true;
     siteConfig.renderDraft = true;
   }
 
@@ -95,6 +91,8 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   const contentRoot = path.join(cwd, siteConfig.contentDir ?? CONTENT_BASE);
   const assetsDir = siteConfig.assetsDir ?? "assets";
   const assetsDirAbs = path.join(cwd, assetsDir);
+  /** 全局资源 URL 前缀（与 assetsDir 保持一致） */
+  const assetsUrlPrefix = `/${assetsDir}`;
 
   // ---- read ----
   // 文件读取阶段，同时读取文章文件与资源文件
@@ -155,13 +153,13 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   buildLog("Finished collect(virtual)");
 
   // ---- process ----
-  const scanned = scanAssets({ contentRoot, assetsDirAbs, pages: allPages });
+  const scanned = scanAssets({ contentRoot, assetsDirAbs, assetsUrlPrefix, pages: allPages });
   site.setAssets(scanned.assets as Asset[]);
-  // 主题 assets 目录与 URL 前缀
+  // 主题 assets 目录与 URL 前缀（merge → /<assetsDir>；namespace → /<assetsDir>/<theme>）
   const themeAssetsDir = path.join(themePath, siteConfig.assetsDir ?? "assets");
   const prefix = siteConfig.themeAssetsMode === "namespace"
-    ? `/${siteConfig.assetsDir ?? "assets"}/${theme.name}`
-    : `/${siteConfig.assetsDir ?? "assets"}`;
+    ? `${assetsUrlPrefix}/${theme.name}`
+    : assetsUrlPrefix;
   // 主题资源（主题模块已提前加载，prefix 已确定；目录可缺失）
   if (fs.existsSync(themeAssetsDir)) {
     for (const rel of walkFiles(themeAssetsDir)) {
@@ -203,6 +201,7 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   // ---- render ----
   const resolveCtx: ResolveContext = {
     assetsDirAbs,
+    assetsUrlPrefix,
     assets,
     postDirByPageId: scanned.postDirByPageId,
   };
@@ -212,27 +211,26 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
     resolve: (ref, page) => resolveAssetRef(ref, page, resolveCtx),
   };
   const renderCtx: RenderContext = { config: siteConfig, assets: assetRegistry };
-  const results: RenderResult[] = [];
   const renderLogger = Logger.getLogger("core:build:render");
-  for (const page of allPages) {
-    await hooks.beforeRender.call(page);
-    // render 阶段：单一职责，只做 Markdown → HTML + toc；由当前 renderer 执行（内置默认可被覆盖）
-    const renderer = renderers.get('markdown');
-    if (!renderer) throw new Error("未注册任何 renderer");
-    // NOTE: 考虑改用 Promise.all 异步执行，现在只有 3 个物理页，渲染时间却到秒级了
-    const mdResult = await renderer(page.rawContent, page, renderCtx);
-    page.content = mdResult.html;
-    page.metadata.toc = mdResult.toc;
-    await hooks.afterRender.call(page);
+  const renderer = renderers.get('markdown');
+  if (!renderer) throw new Error("未注册任何 renderer");
+  // 逐页渲染（并行；renderer 与布局均为无共享状态的纯函数，Promise.all 保序）
+  const results: RenderResult[] = await Promise.all(
+    allPages.map(async (page): Promise<RenderResult> => {
+      await hooks.beforeRender.call(page);
+      const mdResult = await renderer(page.rawContent, page, renderCtx);
+      page.content = mdResult.html;
+      page.metadata.toc = mdResult.toc;
+      await hooks.afterRender.call(page);
 
-
-    renderLogger.info("render page: " + page.title);
-    const html = renderPage(theme, {
-      page,
-      api: core,
-    });
-    results.push({ page, html });
-  }
+      renderLogger.info("render page: " + page.title);
+      const html = renderPage(theme, {
+        page,
+        api: core,
+      });
+      return { page, html };
+    }),
+  );
   buildLog("Finished render");
 
   // 创建 dist 文件夹，此文件夹作为网站最终的 root
@@ -261,7 +259,6 @@ export async function build(options: BuildOptions = {}): Promise<BuildResult> {
   await hooks.afterWrite.call();
   buildLog("Finished write");
 
-  buildMiddleCount = 0;
   return { config: siteConfig, site, pages: results };
 }
 

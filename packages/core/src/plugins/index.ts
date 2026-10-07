@@ -34,6 +34,7 @@ import homeGenerator from "./builtin/generator-home.js";
 import archiveGenerator from "./builtin/generator-archive.js";
 import taxonomyGenerator from "./builtin/generator-taxonomy.js";
 import vpageGenerator from "./builtin/generator-vpage.js";
+import { registerCoreHooks } from "./builtin/hook-link.js";
 import { renderMarkdown } from "../markdown.js";
 
 export type PluginKind = "generator" | "hook" | "renderer" | "helper";
@@ -81,8 +82,10 @@ export async function initCorePlugins(
     helper: { config, cwd, helper },
   };
 
-  // 内置 generator（core:home / core:archives / core:taxonomy）
+  // 内置 generator（core:home / core:archives / core:taxonomy / core:vpage）
   registerCoreGenerators(scoped.generator);
+  // 内置 hook（beforeRender 展开 markdown 内的 {{linkToPost("标题", "集合")}} 为 Markdown 链接）
+  registerCoreHooks(hook, helper);
 
   return { registries, scoped };
 }
@@ -122,7 +125,7 @@ export async function loadPlugins(
     return;
   }
   const pluginLogger = Logger.getLogger("core:plugins");
-  pluginLogger.warn(`加载插件：${pluginsDir}`);
+  pluginLogger.info(`加载插件：${pluginsDir}`);
   const jiti = createJiti(import.meta.url, { interopDefault: true });
   const files = fs
     .readdirSync(pluginsDir, { withFileTypes: true })

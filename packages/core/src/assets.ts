@@ -30,6 +30,8 @@ export function isExternalRef(ref: string): boolean {
 export interface ResolveContext {
   /** 站点 assetsDir 绝对路径 */
   assetsDirAbs: string;
+  /** 全局资源 URL 前缀（如 "/assets"，随 config.assetsDir） */
+  assetsUrlPrefix: string;
   /** 全部 Asset（含专属与全局） */
   assets: Asset[];
   /** 页面 id → 专属目录绝对路径 */
@@ -39,9 +41,9 @@ export interface ResolveContext {
 /**
  * 解析资源引用：
  * - 外部/锚点/查询串 → 原样
- * - /assets/ 绝对路径 → 校验全局资源存在，原样返回
+ * - <assetsUrlPrefix>/ 绝对路径 → 校验全局资源存在，原样返回
  * - 相对路径 → 先在文章专属目录查找（命中输出相对引用，结构对齐无需重写）
- *   → 再在全局 assetsDir 查找（命中重写为 /assets/xxx）
+ *   → 再在全局 assetsDir 查找（命中重写为前缀 URL）
  * - 未命中返回 null（调用方报错）
  */
 export function resolveAssetRef(
@@ -51,9 +53,10 @@ export function resolveAssetRef(
 ): string | null {
   if (isExternalRef(ref)) return ref;
 
-  // 绝对路径：/assets/xxx（URL 前缀 → assetsDir 下对应文件）
-  if (ref.startsWith("/assets/")) {
-    const rel = ref.replace(/^\/assets\//, "");
+  // 绝对路径：<assetsUrlPrefix>/xxx（URL 前缀 → assetsDir 下对应文件）
+  const prefix = ctx.assetsUrlPrefix + "/";
+  if (ref.startsWith(prefix)) {
+    const rel = ref.slice(prefix.length);
     const abs = path.join(ctx.assetsDirAbs, rel);
     if (fs.existsSync(abs)) return ref;
     return null;
@@ -75,7 +78,7 @@ export function resolveAssetRef(
   // 再全局 assetsDir
   const absGlobal = path.resolve(ctx.assetsDirAbs, ref);
   if (fs.existsSync(absGlobal) && fs.statSync(absGlobal).isFile()) {
-    return "/assets/" + toPosixPath(ref);
+    return ctx.assetsUrlPrefix + "/" + toPosixPath(ref);
   }
 
   return null;
@@ -84,15 +87,17 @@ export function resolveAssetRef(
 /**
  * 扫描并归类资源：
  * - 文章专属目录内的文件 → 专属 Asset（url = 页面 url + 相对路径）
- * - assetsDir 内文件 → 全局 Asset（url = /assets/xxx）
+ * - assetsDir 内文件 → 全局 Asset（url = assetsUrlPrefix + 相对路径）
  * - 其他散落文件 → 警告列表
  */
 export function scanAssets(opts: {
   contentRoot: string;
   assetsDirAbs: string;
+  /** 全局资源 URL 前缀（如 "/assets"） */
+  assetsUrlPrefix: string;
   pages: Page[];
 }): AssetScanResult {
-  const { contentRoot, assetsDirAbs, pages } = opts;
+  const { contentRoot, assetsDirAbs, assetsUrlPrefix, pages } = opts;
   const assets: Asset[] = [];
   const stray: string[] = [];
 
@@ -142,7 +147,7 @@ export function scanAssets(opts: {
 
   // 全局资源：assetsDir
   if (fs.existsSync(assetsDirAbs)) {
-    assets.push(...scanDirectoryAssets(assetsDirAbs, "/assets"));
+    assets.push(...scanDirectoryAssets(assetsDirAbs, assetsUrlPrefix));
   }
 
   return { assets, stray, postDirByPageId };

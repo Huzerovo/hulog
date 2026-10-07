@@ -42,9 +42,23 @@ function makePage(id: string, sourcePath: string | null, url: string): Page {
   };
 }
 
+/** 构造资源解析上下文（默认前缀 /assets） */
+function makeCtx(opts: {
+  assetsDirAbs: string;
+  assetsUrlPrefix?: string;
+  postDirByPageId?: Map<string, string>;
+}): ResolveContext {
+  return {
+    assetsDirAbs: opts.assetsDirAbs,
+    assetsUrlPrefix: opts.assetsUrlPrefix ?? "/assets",
+    assets: [],
+    postDirByPageId: opts.postDirByPageId ?? new Map(),
+  };
+}
+
 test("resolveAssetRef: 外部/锚点/查询串原样保留", () => {
   const root = tmpRoot();
-  const ctx: ResolveContext = { assetsDirAbs: root, assets: [], postDirByPageId: new Map() };
+  const ctx = makeCtx({ assetsDirAbs: root });
   const page = makePage("p", null, "/post/p/");
   assert.equal(resolveAssetRef("https://x.com/a.png", page, ctx), "https://x.com/a.png");
   assert.equal(resolveAssetRef("//cdn.com/a.png", page, ctx), "//cdn.com/a.png");
@@ -52,15 +66,11 @@ test("resolveAssetRef: 外部/锚点/查询串原样保留", () => {
   assert.equal(resolveAssetRef("data:image/png;base64,xx", page, ctx), "data:image/png;base64,xx");
 });
 
-test("resolveAssetRef: /assets/ 绝对路径校验全局资源", () => {
+test("resolveAssetRef: 前缀绝对路径校验全局资源", () => {
   const root = tmpRoot();
   fs.mkdirSync(path.join(root, "assets"), { recursive: true });
   fs.writeFileSync(path.join(root, "assets", "a.css"), "x");
-  const ctx: ResolveContext = {
-    assetsDirAbs: path.join(root, "assets"),
-    assets: [],
-    postDirByPageId: new Map(),
-  };
+  const ctx = makeCtx({ assetsDirAbs: path.join(root, "assets") });
   const page = makePage("p", null, "/post/p/");
   assert.equal(resolveAssetRef("/assets/a.css", page, ctx), "/assets/a.css");
   assert.equal(resolveAssetRef("/assets/missing.css", page, ctx), null);
@@ -71,24 +81,36 @@ test("resolveAssetRef: 专属目录命中返回相对引用", () => {
   const postDir = path.join(root, "posts", "hello");
   fs.mkdirSync(postDir, { recursive: true });
   fs.writeFileSync(path.join(postDir, "hero.png"), "img");
-  const ctx: ResolveContext = {
+  const ctx = makeCtx({
     assetsDirAbs: path.join(root, "assets"),
-    assets: [],
     postDirByPageId: new Map([["content/posts/hello.md", postDir]]),
-  };
+  });
   const page = makePage("content/posts/hello.md", path.join(root, "posts/hello.md"), "/post/hello/");
   assert.equal(resolveAssetRef("hero.png", page, ctx), "hero.png");
   assert.equal(resolveAssetRef("missing.png", page, ctx), null);
 });
 
-test("resolveAssetRef: 全局目录命中重写为 /assets/", () => {
+test("resolveAssetRef: 全局目录命中重写为前缀 URL", () => {
   const root = tmpRoot();
   const assetsDirAbs = path.join(root, "assets");
   fs.mkdirSync(assetsDirAbs, { recursive: true });
   fs.writeFileSync(path.join(assetsDirAbs, "logo.png"), "img");
-  const ctx: ResolveContext = { assetsDirAbs, assets: [], postDirByPageId: new Map() };
+  const ctx = makeCtx({ assetsDirAbs });
   const page = makePage("p", null, "/post/p/");
   assert.equal(resolveAssetRef("logo.png", page, ctx), "/assets/logo.png");
+});
+
+test("resolveAssetRef: assetsUrlPrefix 随 assetsDir 配置", () => {
+  const root = tmpRoot();
+  const assetsDirAbs = path.join(root, "static");
+  fs.mkdirSync(assetsDirAbs, { recursive: true });
+  fs.writeFileSync(path.join(assetsDirAbs, "logo.png"), "img");
+  const ctx = makeCtx({ assetsDirAbs, assetsUrlPrefix: "/static" });
+  const page = makePage("p", null, "/post/p/");
+  assert.equal(resolveAssetRef("/static/logo.png", page, ctx), "/static/logo.png");
+  assert.equal(resolveAssetRef("logo.png", page, ctx), "/static/logo.png");
+  // 非当前前缀的绝对路径按普通站内路径原样保留
+  assert.equal(resolveAssetRef("/assets/logo.png", page, ctx), "/assets/logo.png");
 });
 
 test("scanAssets: 专属/全局/散落三类资源", () => {
@@ -104,7 +126,7 @@ test("scanAssets: 专属/全局/散落三类资源", () => {
   fs.writeFileSync(path.join(assetsDirAbs, "logo.png"), "img");
 
   const page = makePage("content/posts/hello.md", path.join(contentRoot, "posts", "hello.md"), "/post/hello/");
-  const result = scanAssets({ contentRoot, assetsDirAbs, pages: [page] });
+  const result = scanAssets({ contentRoot, assetsDirAbs, assetsUrlPrefix: "/assets", pages: [page] });
 
   assert.deepEqual(result.stray, ["loose.txt"]);
   assert.equal(result.postDirByPageId.get("content/posts/hello.md"), postDir);

@@ -12,7 +12,12 @@ import rehypeTableWrapper from "@tuyuritio/rehype-table-wrapper";
 import { visit } from "unist-util-visit";
 import { toString } from "hast-util-to-string";
 import type { Element, Root } from "hast";
-import { createHighlighterCoreSync, createJavaScriptRegexEngine, type HighlighterGeneric } from "shiki";
+import {
+  bundledLanguages,
+  createHighlighterCoreSync,
+  createJavaScriptRegexEngine,
+  type HighlighterGeneric,
+} from "shiki";
 import type { Page } from "./types/page.js";
 import type {
   AssetRegistry,
@@ -33,132 +38,61 @@ export type { MarkdownResult, RenderContext, TocEntry };
  * GFM 支持（remark-gfm）：表格、任务列表、删除线、自动链接（URL/邮箱）、脚注。
  */
 
-// ---------- shiki 高亮器（模块级单例，dev 重建复用） ----------
-/** 常用语言集合（动态导入，仅注册需要的语言） */
-const COMMON_LANGS = (() => {
-  const load = (m: unknown) => m;
-  return [
-    load(import("@shikijs/langs/abap")),
-    load(import("@shikijs/langs/actionscript-3")),
-    load(import("@shikijs/langs/ada")),
-    load(import("@shikijs/langs/ahk")),
-    load(import("@shikijs/langs/angular-html")),
-    load(import("@shikijs/langs/apache")),
-    load(import("@shikijs/langs/apex")),
-    load(import("@shikijs/langs/applescript")),
-    load(import("@shikijs/langs/asciidoc")),
-    load(import("@shikijs/langs/astro")),
-    load(import("@shikijs/langs/awk")),
-    load(import("@shikijs/langs/bat")),
-    load(import("@shikijs/langs/bash")),
-    load(import("@shikijs/langs/bibtex")),
-    load(import("@shikijs/langs/bicep")),
-    load(import("@shikijs/langs/c")),
-    load(import("@shikijs/langs/clojure")),
-    load(import("@shikijs/langs/cmake")),
-    load(import("@shikijs/langs/coffeescript")),
-    load(import("@shikijs/langs/common-lisp")),
-    load(import("@shikijs/langs/cpp")),
-    load(import("@shikijs/langs/csharp")),
-    load(import("@shikijs/langs/css")),
-    load(import("@shikijs/langs/csv")),
-    load(import("@shikijs/langs/cue")),
-    load(import("@shikijs/langs/dart")),
-    load(import("@shikijs/langs/diff")),
-    load(import("@shikijs/langs/docker")),
-    load(import("@shikijs/langs/elixir")),
-    load(import("@shikijs/langs/elm")),
-    load(import("@shikijs/langs/erlang")),
-    load(import("@shikijs/langs/fish")),
-    load(import("@shikijs/langs/fsharp")),
-    load(import("@shikijs/langs/gdscript")),
-    load(import("@shikijs/langs/git-commit")),
-    load(import("@shikijs/langs/git-rebase")),
-    load(import("@shikijs/langs/gleam")),
-    load(import("@shikijs/langs/go")),
-    load(import("@shikijs/langs/graphql")),
-    load(import("@shikijs/langs/groovy")),
-    load(import("@shikijs/langs/handlebars")),
-    load(import("@shikijs/langs/haskell")),
-    load(import("@shikijs/langs/hcl")),
-    load(import("@shikijs/langs/ini")),
-    load(import("@shikijs/langs/java")),
-    load(import("@shikijs/langs/javascript")),
-    load(import("@shikijs/langs/jinja")),
-    load(import("@shikijs/langs/julia")),
-    load(import("@shikijs/langs/json")),
-    load(import("@shikijs/langs/json5")),
-    load(import("@shikijs/langs/jsonc")),
-    load(import("@shikijs/langs/jsx")),
-    load(import("@shikijs/langs/kotlin")),
-    load(import("@shikijs/langs/less")),
-    load(import("@shikijs/langs/liquid")),
-    load(import("@shikijs/langs/lua")),
-    load(import("@shikijs/langs/makefile")),
-    load(import("@shikijs/langs/markdown")),
-    load(import("@shikijs/langs/matlab")),
-    load(import("@shikijs/langs/mdx")),
-    load(import("@shikijs/langs/mermaid")),
-    load(import("@shikijs/langs/nim")),
-    load(import("@shikijs/langs/nix")),
-    load(import("@shikijs/langs/objective-c")),
-    load(import("@shikijs/langs/ocaml")),
-    load(import("@shikijs/langs/php")),
-    load(import("@shikijs/langs/plsql")),
-    load(import("@shikijs/langs/powershell")),
-    load(import("@shikijs/langs/prisma")),
-    load(import("@shikijs/langs/prolog")),
-    load(import("@shikijs/langs/pug")),
-    load(import("@shikijs/langs/puppet")),
-    load(import("@shikijs/langs/python")),
-    load(import("@shikijs/langs/r")),
-    load(import("@shikijs/langs/racket")),
-    load(import("@shikijs/langs/raku")),
-    load(import("@shikijs/langs/ruby")),
-    load(import("@shikijs/langs/rust")),
-    load(import("@shikijs/langs/sass")),
-    load(import("@shikijs/langs/scala")),
-    load(import("@shikijs/langs/scss")),
-    load(import("@shikijs/langs/shellscript")),
-    load(import("@shikijs/langs/solidity")),
-    load(import("@shikijs/langs/sparql")),
-    load(import("@shikijs/langs/sql")),
-    load(import("@shikijs/langs/stylus")),
-    load(import("@shikijs/langs/svelte")),
-    load(import("@shikijs/langs/swift")),
-    load(import("@shikijs/langs/system-verilog")),
-    load(import("@shikijs/langs/tcl")),
-    load(import("@shikijs/langs/toml")),
-    load(import("@shikijs/langs/tsv")),
-    load(import("@shikijs/langs/tsx")),
-    load(import("@shikijs/langs/twig")),
-    load(import("@shikijs/langs/typescript")),
-    load(import("@shikijs/langs/vb")),
-    load(import("@shikijs/langs/verilog")),
-    load(import("@shikijs/langs/vhdl")),
-    load(import("@shikijs/langs/vue")),
-    load(import("@shikijs/langs/wasm")),
-    load(import("@shikijs/langs/xml")),
-    load(import("@shikijs/langs/yaml")),
-    load(import("@shikijs/langs/zig")),
-  ];
-})();
+// ---------- shiki 高亮器（模块级单例，dev 重建复用；语言按需加载） ----------
 
 let highlighter: HighlighterGeneric<any, any> | null = null;
+let highlighterPromise: Promise<HighlighterGeneric<any, any>> | null = null;
+/** 语言加载去重（并发渲染同一语言只加载一次） */
+const langLoading = new Map<string, Promise<unknown>>();
 
-/** 初始化（懒加载，模块级单例复用） */
-async function getHighlighter(): Promise<HighlighterGeneric<any, any>> {
-  if (highlighter) return highlighter;
-  const langs = await Promise.all(
-    COMMON_LANGS.map((l) => (l as Promise<unknown>).then((m: any) => m.default ?? m)),
+/** 初始化核心高亮器（不预载语言；语言由 ensureLanguages 按文档按需加载） */
+function getHighlighter(): Promise<HighlighterGeneric<any, any>> {
+  if (!highlighterPromise) {
+    highlighterPromise = (async () => {
+      const theme = (await import("@shikijs/themes/github-dark")).default;
+      highlighter = createHighlighterCoreSync({
+        themes: [theme],
+        langs: [],
+        engine: createJavaScriptRegexEngine(),
+      }) as unknown as HighlighterGeneric<any, any>;
+      return highlighter;
+    })();
+  }
+  return highlighterPromise;
+}
+
+/**
+ * 扫描 Markdown 代码围栏语言并按需加载（bundledLanguages 含别名，均为惰性 import）。
+ * 未知语言不加载，交由 @shikijs/rehype 原样保留为普通代码块。
+ */
+async function ensureLanguages(
+  hl: HighlighterGeneric<any, any>,
+  rawContent: string,
+): Promise<void> {
+  const names = new Set<string>();
+  const re = /(?:^|\n)[ \t]*(?:```|~~~)[ \t]*([^\s`~]*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rawContent))) {
+    let name = (m[1] ?? "").trim().toLowerCase();
+    if (!name) continue;
+    if (name === "shell" || name === "sh") name = "bash";
+    names.add(name);
+  }
+  await Promise.all(
+    [...names].map(async (name) => {
+      if (hl.getLoadedLanguages().includes(name)) return;
+      const loader = (bundledLanguages as Record<string, undefined | (() => Promise<any>)>)[name];
+      if (!loader) return;
+      let p = langLoading.get(name);
+      if (!p) {
+        p = hl.loadLanguage(loader() as any).catch(() => {
+          // 语言加载失败 → 按纯文本渲染，不阻断构建
+        });
+        langLoading.set(name, p);
+      }
+      await p;
+    }),
   );
-  const theme = (await import("@shikijs/themes/github-dark")).default;
-  highlighter = createHighlighterCoreSync({
-    themes: [theme],
-    langs: langs as any,
-    engine: createJavaScriptRegexEngine(),
-  }) as unknown as HighlighterGeneric<any, any>;
-  return highlighter;
 }
 
 // ---------- 自定义 rehype 插件 ----------
@@ -285,6 +219,7 @@ export async function renderMarkdown(
   if (useKatex) processor.use(rehypeKatex as unknown as Plugin);
   if (useShiki) {
     const hl = await getHighlighter();
+    await ensureLanguages(hl, rawContent);
     processor
       .use(rehypeNormalizeLangs() as unknown as Plugin)
       .use(rehypeShikiFromHighlighter, hl, {
