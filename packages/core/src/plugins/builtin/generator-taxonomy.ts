@@ -27,9 +27,11 @@ export default function(api: GeneratorAPI) {
   const categoryPathToString = helper.get("categoryPathToString") as (
     path: CategoryPath,
   ) => string;
+  /** 分类/标签统计源：全部非虚拟集合的文章（posts/analysis/gallery/...） */
+  const taxonomyPages = helper.get("taxonomyPages") as () => Page[];
 
   api.generator.register("core:taxonomy", (site): Page[] => {
-    const posts = site.collections.get("posts")?.getPages(true) ?? [];
+    const posts = taxonomyPages();
     if (posts.length === 0) return [];
     const perPage = site.config.perPage ?? 10;
     const format = site.config.paginationDir ?? "page";

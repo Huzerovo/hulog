@@ -125,12 +125,12 @@ export default function (api: RendererAPI) {
 - **preact 单实例**：preact 系列模块通过 alias + external 与核心进程共享同一实例，保证 `context`/`hooks` 与 `preact-render-to-string` 互通。
 - **helper 访问（无虚拟模块）**：`LayoutProps = { page, api }`，`api` 为 `CoreAPI`（`api.site` / `api.theme.config` / `api.helper`）；主题根布局将 `api` 注入 Preact Context，组件经 `api.helper.get("themeAsset")("...")` 使用 helper。
 - **渲染**（`renderPage`）：按 `page.layout` 选择布局，回退链 `精确 → default → page`，preact-render-to-string 输出 HTML。
-- **资源输出**：主题 `assetsDir` 内资源并入站点；`themeAssetsMode` 决定前缀（`merge → /assets`、`namespace → /assets/<theme>`）；`.less` 编译为 CSS（`_` 前缀 partial 仅作 @import 源）。
+- **资源输出**：主题 `assetsDir` 内资源并入站点；`themeAssetsMode` 决定前缀（`merge → /<assetsDir>`、`namespace → /<assetsDir>/<theme>`，默认 assetsDir 为 assets）；`.less` 编译为 CSS（`_` 前缀 partial 仅作 @import 源）。
 
 ## 资源处理
 
-- **扫描**（`assets.ts` `scanAssets`）：文章同名专属目录内文件 → 专属 Asset（URL = 页面 URL + 相对路径）；`assetsDir` 内文件 → 全局 Asset（`/assets/...`）；其他散落文件进 `stray` 警告列表。
-- **引用解析**（`resolveAssetRef`）：外部/锚点/查询原样；`/assets/` 校验存在；相对路径先查专属目录（命中保持相对引用）再查全局 `assetsDir`（命中重写为 `/assets/...`）；未命中返回 `null` 由调用方报错。
+- **扫描**（`assets.ts` `scanAssets`）：文章同名专属目录内文件 → 专属 Asset（URL = 页面 URL + 相对路径）；`assetsDir` 内文件 → 全局 Asset（`/<assetsDir>/...`）；其他散落文件进 `stray` 警告列表。
+- **引用解析**（`resolveAssetRef`）：外部/锚点/查询原样；`<assetsUrlPrefix>/`（随 `assetsDir`）校验存在；相对路径先查专属目录（命中保持相对引用）再查全局 `assetsDir`（命中重写为前缀 URL）；未命中返回 `null` 由调用方报错。
 - **renderer 资源上下文**：renderer 经 `RenderContext { config, assets: AssetRegistry }` 取配置、用 `assets.resolve(ref, page)` 解析引用（不再直接暴露 `ResolveContext`）。
 - **process 阶段**：hook 插件经 `api.hook.afterProcess.tap()` 遍历并改写 `Asset[]`（如压缩）。
 
@@ -145,9 +145,10 @@ remark-parse → remark-gfm → remark-math → remark-rehype(allowDangerousHtml
   → rehype-katex → @shikijs/rehype（构建时高亮）→ rehype-stringify
 ```
 
-- **代码高亮**：shiki 动态加载语言集合，模块级单例复用；`markdown.highlight`/`clientHighlight` 可开关。
+- **代码高亮**：shiki 模块级单例，语言按文档围栏按需加载（`bundledLanguages`，含别名）；`markdown.highlight`/`clientHighlight` 可开关。
 - **目录**：收集 h1–h3 生成 `toc`（跳过 GFM 脚注区块）。
 - **KaTeX**：`markdown.katex` 开关。
+- **内联文章引用**：markdown 中写 `{{linkToPost("文章标题")}}` 即产出 `[标题](url)` 链接；可选第二参数限定集合：`{{linkToPost("标题", "analysis")}}`（缺省 posts 优先、非虚拟页面回退），`beforeRender` 阶段展开；围栏代码块（``` / ~~~）内不替换。
 - **Mermaid**：`markdown.mermaid` 开关（默认 true）。```mermaid 代码块被转为 `<pre class="mermaid">` 并跳过 shiki，由主题客户端按需加载 mermaid.js 渲染，并放入 Shadow DOM 隔离（固定浅色背景），支持滚轮 / 双指缩放、拖拽平移、双击或按钮全屏（见 `example/themes/huzerovo`）。
 
 ## 公共 API（`index.ts`）
@@ -160,6 +161,8 @@ remark-parse → remark-gfm → remark-math → remark-rehype(allowDangerousHtml
 - `RendererRegistryImpl` — renderer 注册表实现。
 - `parseCategories` / `buildCategoryTree` / `categoryPathToUrl` — 分类工具。
 - `pageUrl` / `paginate` / `pinSort` — 分页工具（以 helper 形式注册）。
+- `linkToPost(title, collection?)` — 生成文章 Markdown 链接 `[标题](url)`（不传集合时 posts 优先、非虚拟页面回退；未命中返回空串）。
+- `taxonomyPages()` — 分类/标签统计源：全部非虚拟集合的页面（按日期降序）。
 - `scanAssets` / `resolveAssetRef` — 资源工具。
 - `SiteImpl` / `CollectionImpl` / `AsyncHookImpl` — 实现类。
 - API 类型：`CoreAPI`（主题用：`site` / `theme` / `helper`）、`Registries`（内部编排）、`GeneratorAPI` / `HookAPI` / `RendererAPI` / `HelperAPI`（按插件类型作用域化）、`RuntimeContext`。

@@ -5,6 +5,7 @@ import type { CollectionConfig } from "../types/collection.js";
 import type { SiteConfig } from "../types/config.js";
 import type { FileEntry } from "../types/sequence.js";
 import { RESERVED_KEYS, type Page } from "../types/page.js";
+import { isPosts } from "./read.js";
 import { parseCategories } from "../category.js";
 import { parseSlugFromFilename, resolveUrl } from "../route.js";
 import { toPosixPath } from "../path.js";
@@ -128,7 +129,7 @@ export function seqParse(siteConfig: SiteConfig /* TODO: 此参数需要移除 *
   // 在之后的 render 阶段还可以使用类似 `seqRender(pages, type)` 的方式分类渲染
   // 且注册 render 也可以使用类似 `renderer.registry(type, callback)` 的方式添加额外支持
   // 整合之后还可以考虑使用 `const {pages, assets, unknow} = seqParse(files)` 的方式获取结果
-  const mdFiles = files.filter((f) => !f.isAsset);
+  const mdFiles = files.filter(isPosts);
   const pages: Page[] = [];
   for (const f of mdFiles) {
     const rel = toPosixPath(path.relative(contentRoot, f.absolutePath));

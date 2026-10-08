@@ -89,6 +89,44 @@ test("内置 generator 生成 virtual 页面（site 有 posts 时）", async () 
   assert.ok(homePages.every((p) => p.collection === "core:virtual"));
 });
 
+test("core:taxonomy 覆盖全部非虚拟集合的 tags/categories", async () => {
+  const site = makeSite();
+  const post = {
+    ...mkPage("p1"),
+    tags: ["t-post"],
+    categories: [["cat-post"]],
+  };
+  const analysis = {
+    ...mkPage("a1"),
+    collection: "analysis",
+    url: "/analysis/a1/",
+    tags: ["t-analysis"],
+    categories: [["cat-analysis", "sub"]],
+  };
+  site.collections.set(
+    "posts",
+    new CollectionImpl("posts", { name: "posts", sourceDir: "posts" }, [post]),
+  );
+  site.collections.set(
+    "analysis",
+    new CollectionImpl("analysis", { name: "analysis", sourceDir: "analysis" }, [analysis]),
+  );
+  const { registries } = await initCorePlugins(site, "/tmp");
+
+  const taxonomy = registries.generators.get("core:taxonomy")!;
+  const pages = await taxonomy(site);
+  const urls = pages.map((p) => p.url);
+
+  // posts 集合的 tag/category
+  assert.ok(urls.includes("/tags/t-post/"));
+  assert.ok(urls.includes("/categories/cat-post/"));
+  // analysis 集合的 tag/category（含祖先分类页）
+  assert.ok(urls.includes("/tags/t-analysis/"));
+  assert.ok(urls.includes("/categories/cat-analysis/"));
+  assert.ok(urls.includes("/categories/cat-analysis/sub/"));
+  assert.ok(pages.every((p) => p.collection === "core:virtual"));
+});
+
 test("scoped generator API 暴露 generator 与 helper，不暴露 hook/renderer", async () => {
   const { scoped } = await initCorePlugins(makeSite(), "/tmp");
   assert.ok(scoped.generator.generator);

@@ -15,6 +15,11 @@ import type { Site } from "../types/site.js";
  * 插件与主题经 api.helper.get(...) 使用。
  */
 
+/** Markdown 链接文本转义（对 [ ] \ 加反斜杠） */
+function escapeLinkText(text: string): string {
+  return text.replace(/[\\[\]]/g, "\\$&");
+}
+
 
 export class HelperRegistryImpl implements HelperRegistry {
   private helpers = new Map<string, Function>();
@@ -75,10 +80,11 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   });
 
-  /** 站点全局资源 */
+  /** 站点全局资源（前缀随 config.assetsDir，默认 /assets） */
   registry.register("assetUrl", (p: string) => {
     const s = String(p).replace(/^\/+/, "");
-    return "/assets/" + s;
+    const base = registry.site.config.assetsDir ?? "assets";
+    return `/${base}/` + s;
   });
 
   registry.register("archivesUrl", () => {
@@ -123,5 +129,42 @@ export function registerCoreHelpers(registry: HelperRegistry): void {
       }
 
     });
+  });
+
+  /**
+   * 生成文章 Markdown 链接：[标题](url)。
+   * - collection：限定查找集合（缺省 posts 优先、非虚拟页面回退）；
+   * 未命中返回 ""（不抛错，由调用方决定提示）。
+   * 可直接在主题中使用，也可在 markdown 中写 {{linkToPost("标题", "集合")}}（beforeRender 展开）。
+   */
+  registry.register("linkToPost", (title: string, collection?: string) => {
+    const key = String(title ?? "").trim();
+    if (!key) return "";
+    const site = registry.site;
+    let hit: Page | undefined;
+    if (collection) {
+      hit = site.collections
+        .get(collection)
+        ?.getPages()
+        .find((p) => p.title === key);
+    } else {
+      hit =
+        site.posts.find((p) => p.title === key) ??
+        site.pages.find(
+          (p) => p.collection !== VIRTUAL_PAGE_COLLECTION && p.title === key,
+        );
+    }
+    if (!hit) return "";
+    return `[${escapeLinkText(key)}](${hit.url})`;
+  });
+
+  /**
+   * 参与分类 / 标签统计的页面：全部非虚拟集合的页面（文章），按日期降序。
+   * 分类页、标签云、分类树的统一数据源（虚拟列表页自身无 tags/categories）。
+   */
+  registry.register("taxonomyPages", () => {
+    return [...registry.site.pages]
+      .filter((p) => p.collection !== VIRTUAL_PAGE_COLLECTION)
+      .sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
   });
 }

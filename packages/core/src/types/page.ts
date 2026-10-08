@@ -55,8 +55,8 @@ export interface PageBase {
 export interface PagePostOptional {
   // 文章创建/发布时间
   date: Date;
-  // 文章更新时间
-  updated: Date;
+  // 文章更新时间（front-matter 缺省时回退 date）
+  updated?: Date;
   // 草稿标记
   draft?: boolean;
   // 文章标签
