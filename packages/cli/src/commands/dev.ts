@@ -69,7 +69,11 @@ export async function devCmd(opts: DevOptions) {
       return;
     }
     const ext = path.extname(abs).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME[ext] ?? "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type": MIME[ext] ?? "application/octet-stream",
+      // 开发服务器禁用缓存：避免浏览器继续使用旧版 JS/CSS（改动后必须拿到最新内容）
+      "Cache-Control": "no-store, must-revalidate",
+    });
     let body = fs.readFileSync(abs);
     if (ext === ".html") {
       // 注入热重载脚本

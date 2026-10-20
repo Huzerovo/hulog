@@ -151,9 +151,31 @@ remark-parse → remark-gfm → remark-math → remark-rehype(allowDangerousHtml
 - **内联文章引用**：markdown 中写 `{{linkToPost("文章标题")}}` 即产出 `[标题](url)` 链接；可选第二参数限定集合：`{{linkToPost("标题", "analysis")}}`（缺省 posts 优先、非虚拟页面回退），`beforeRender` 阶段展开；围栏代码块（``` / ~~~）内不替换。
 - **Mermaid**：`markdown.mermaid` 开关（默认 true）。```mermaid 代码块被转为 `<pre class="mermaid">` 并跳过 shiki，由主题客户端按需加载 mermaid.js 渲染，并放入 Shadow DOM 隔离（固定浅色背景），支持滚轮 / 双指缩放、拖拽平移、双击或按钮全屏（见 `example/themes/huzerovo`）。
 
+## 单文件渲染（standalone）
+
+`renderMarkdownFile(options)`：把**单个纯 Markdown 文件**（可无 front-matter）用站点主题渲染为**自包含 HTML**，复用现有 markdown 管线与主题布局。
+
+```ts
+import { renderMarkdownFile } from "@hulog/core";
+const { outFile, html } = await renderMarkdownFile({
+  file: "./notes.md",
+  root: "./my-blog",   // 定位 themes/、blog.config.ts、theme.config.ts（默认 cwd）
+  theme: "huzerovo",   // 可省略：缺省读取站点配置的 theme
+  layout: "post",      // 默认 post
+});
+```
+
+- **标题**：`title` 参数 → 正文首个 H1（并从正文移除）→ 文件名；提供 `title` 时保留正文 H1。
+- **自包含**：主题 CSS（含 `.less` 编译结果）与本地 JS 内联为 `<style>`/`<script>`；正文图片与主题内图片转为 data URI；CSS 中本地 `url(...)` 一并内联。
+- **日期**：未提供时使用文件 mtime。
+- **单页范围**：页面放入合成 `posts` 集合；不生成 search.json、归档/标签/图册等站点级页面。主题导航链接会指向不存在的页面。
+- **外部依赖**：KaTeX CSS、Mermaid 等 CDN 资源保持外链（离线时需自行内联）。
+- **CLI**：`hulog render <file.md> [-o out.html] [-t theme] [-b siteRoot] [--layout post] [--title "..."]`。
+
 ## 公共 API（`index.ts`）
 
 - `build(options)` — 主构建入口。
+- `renderMarkdownFile(options)` — 单文件 Markdown → 自包含 HTML（复用站点主题）。
 - `initHooks()` — 构建阶段 hook 集。
 - `loadSiteConfig` / `defineConfig` — 配置加载与定义。
 - `loadTheme` / `renderPage` / `resolveThemeDir` — 主题相关。
