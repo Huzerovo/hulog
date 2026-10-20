@@ -6,7 +6,7 @@ import { CONTENT_BASE, ARCHIVES_BASE } from "./types/config.js";
 const MODULE_NAME = "blog";
 
 /** 配置文件搜索顺序 */
-const SEARCH_PLACES = [
+export const SITE_CONFIG_PLACES = [
   "blog.config.ts",
   "blog.config.js",
   "blog.config.mjs",
@@ -36,42 +36,42 @@ function makeTsLoader() {
   };
 }
 
+/** 站点配置默认值（loadSiteConfig 与单文件渲染共用） */
+export const SITE_CONFIG_DEFAULTS: Partial<SiteConfig> = {
+  assetsDir: "assets",
+  contentDir: CONTENT_BASE,
+  markdown: { highlight: true, katex: true, clientHighlight: false },
+  server: { port: 3000, hot: true },
+  themeAssetsMode: "merge",
+  pluginsDir: "plugins",
+  language: "zh-CN",
+  perPage: 10,
+  renderDraft: false,
+  archivesDir: ARCHIVES_BASE,
+  paginationDir: "page",
+  virtualPages: [],
+};
+
 /**
  * 加载站点配置：
  * cosmiconfig 负责查找配置文件，TS/ESM 配置经 jiti 动态加载。
  */
 export async function loadSiteConfig(cwd: string): Promise<SiteConfig> {
   const explorer = cosmiconfig(MODULE_NAME, {
-    searchPlaces: SEARCH_PLACES,
+    searchPlaces: SITE_CONFIG_PLACES,
     loaders: {
       ".ts": makeTsLoader(),
       ".js": makeTsLoader(),
     },
   });
 
-  // TODO: 目前这里使用的是 Partial，但实际是 SiteConfig 有些是必选项，需要再审查一下保证完全初始化
-  const defaults: Partial<SiteConfig> = {
-    assetsDir: "assets",
-    contentDir: CONTENT_BASE,
-    markdown: { highlight: true, katex: true, clientHighlight: false },
-    server: { port: 3000, hot: true },
-    themeAssetsMode: "merge",
-    pluginsDir: "plugins",
-    language: "zh-CN",
-    perPage: 10,
-    renderDraft: false,
-    archivesDir: ARCHIVES_BASE,
-    paginationDir: "page",
-    virtualPages: [],
-  };
-
   const result = await explorer.search(cwd);
   if (!result || result.isEmpty) {
     throw new Error(
-      `未找到配置文件（${SEARCH_PLACES.join(" / ")}），请先运行 ${process.title} init`,
+      `未找到配置文件（${SITE_CONFIG_PLACES.join(" / ")}），请先运行 ${process.title} init`,
     );
   }
-  return { ...defaults, ...result.config } as SiteConfig;
+  return { ...SITE_CONFIG_DEFAULTS, ...result.config } as SiteConfig;
 }
 
 /**

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import type { Theme } from "../types/theme.js";
 import { loadThemeConfig } from "../config.js";
@@ -17,6 +18,36 @@ export interface LoadedTheme {
   theme: Theme;
   /** 主题目录绝对路径 */
   themePath: string;
+}
+
+/** 当前 @hulog/core 包根目录（src/theme 或 dist/theme 的上两级） */
+const CORE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+/**
+ * 主题 bundle 将 `@hulog/core` 标为 external；为保证站点根未安装 core 时
+ * （如单文件渲染指向普通目录）仍可解析，在主题缓存目录内提供指向当前 core 的链接。
+ * 仅写入 `<root>/node_modules/.cache/hulog` 内部，不影响站点其它依赖。
+ */
+function ensureCoreResolvable(cacheDir: string): void {
+  const linkDir = path.join(cacheDir, "node_modules", "@hulog");
+  const linkPath = path.join(linkDir, "core");
+  try {
+    // 已指向当前 core（开发热重载/多次构建）则直接复用
+    if (fs.realpathSync(linkPath) === fs.realpathSync(CORE_ROOT)) return;
+  } catch {
+    /* 不存在或断链，继续重建 */
+  }
+  try {
+    fs.mkdirSync(linkDir, { recursive: true });
+    try {
+      fs.unlinkSync(linkPath);
+    } catch {
+      /* 不存在或为真实目录：忽略 */
+    }
+    fs.symlinkSync(CORE_ROOT, linkPath, "junction");
+  } catch {
+    /* 权限/平台不支持时忽略：站点根可解析 @hulog/core 时仍可正常工作 */
+  }
 }
 
 // 从 core 自身解析 preact（指向 ESM 入口），保证主题位于任意目录时都能 bundle。
@@ -72,6 +103,7 @@ export async function loadTheme(
 
   const cacheDir = path.join(projectRoot, "node_modules", ".cache", "hulog");
   fs.mkdirSync(cacheDir, { recursive: true });
+  ensureCoreResolvable(cacheDir);
   const hash = crypto
     .createHash("md5")
     .update(themePath)

@@ -20,6 +20,11 @@
 export * from "./types/index.js";
 export { build, type BuildOptions, type BuildResult } from "./build.js";
 export {
+  renderMarkdownFile,
+  type RenderMarkdownFileOptions,
+  type RenderMarkdownFileResult,
+} from "./standalone.js";
+export {
   parseCategories,
   categoryPathToString,
   categoryPathToUrl,

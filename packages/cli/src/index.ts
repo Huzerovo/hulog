@@ -6,6 +6,7 @@ import { cleanCmd } from "./commands/clean.js";
 import { newCmd } from "./commands/new.js";
 import { publishCmd } from "./commands/publish.js";
 import { devCmd } from "./commands/dev.js";
+import { renderCmd } from "./commands/render.js";
 import { run } from "./run.js";
 
 const program = new Command();
@@ -42,6 +43,28 @@ program
   .description("生产构建")
   .option("-b, --base <path>", "网站根目录", process.cwd())
   .action((opts) => run("build", () => buildCmd({ base: opts.base })));
+
+program
+  .command("render")
+  .description("将单个 Markdown 文件渲染为自包含 HTML（复用站点主题）")
+  .argument("<file>", "输入 markdown 文件")
+  .option("-o, --out <file>", "输出 HTML 路径（默认与输入同名 .html）")
+  .option("-t, --theme <name>", "主题名或路径（缺省读取站点配置）")
+  .option("-b, --base <path>", "站点根目录（定位 themes/ 与配置）", process.cwd())
+  .option("--layout <name>", "布局名", "post")
+  .option("--title <title>", "覆盖标题（缺省取正文首个 H1）")
+  .action((file, opts) =>
+    run("render", () =>
+      renderCmd({
+        file,
+        out: opts.out,
+        theme: opts.theme,
+        base: opts.base,
+        layout: opts.layout,
+        title: opts.title,
+      }),
+    ),
+  );
 
 program
   .command("clean")
