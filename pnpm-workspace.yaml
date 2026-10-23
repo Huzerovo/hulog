@@ -3,8 +3,6 @@ allowBuilds:
 
 packages:
   - "packages/*"
-  - "example"
-  - "example/themes/default"
 
 overrides:
   "@hulog/core": "workspace:*"
