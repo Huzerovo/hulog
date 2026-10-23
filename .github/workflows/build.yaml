@@ -39,7 +39,7 @@ jobs:
           mkdir -p dist-core
           cp -r ./packages/core/dist dist-core/
           cp ./packages/core/package.json dist-core/
-          if [[ -d 'dist-cli' ]]; then rm -r 'dist-core'; fi
+          if [[ -d 'dist-cli' ]]; then rm -r 'dist-cli'; fi
           mkdir -p dist-cli
           cp -r ./packages/cli/dist dist-cli/
           cp ./packages/cli/package.json dist-cli/
