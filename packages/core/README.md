@@ -4,7 +4,7 @@
 
 ## 定位
 
-`@hulog/core` 负责将「Markdown 内容 + 站点配置 + 主题」构建为静态 HTML 站点，并通过 generator / hook / renderer / helper 提供可插拔扩展点。CLI 与 dev server 仅做薄封装，调用 `build()` 完成构建。
+`@hulog/core` 负责将「Markdown 内容 + 站点配置 + 主题」构建为静态 HTML 站点，并通过 generator / hook / renderer / helper 提供可插拔扩展点。CLI 与 dev server 仅做薄封装：`build()` 构建整站，`renderMarkdownFile()` 渲染单个 Markdown 文件。
 
 ## 目录结构
 
@@ -12,16 +12,18 @@
 src/
 ├── index.ts          # 公共 API 出口
 ├── build.ts          # 构建管线编排（唯一入口 build()）
+├── standalone.ts     # 单文件 Markdown → 自包含 HTML（renderMarkdownFile）
 ├── core-api.ts       # CoreAPI（主题用）实现
 ├── config.ts         # 站点/主题配置加载（cosmiconfig + jiti）
 ├── path.ts           # 路径工具（toPosixPath）
+├── utils.ts          # Logger（命名空间/级别/颜色）
 ├── plugins/          # 插件系统
 │   ├── index.ts      # 发现/加载 + scoped API 组装 + 内置注册
 │   ├── generator.ts  # 生成器注册表
 │   ├── helper.ts     # helper 注册表 + 核心 helper
 │   ├── hook.ts       # tapable 异步钩子
 │   ├── renderer.ts   # 渲染器注册表
-│   └── builtin/      # 内置 generator（home/archive/taxonomy）
+│   └── builtin/      # 内置 generator（home/archive/taxonomy/vpage）+ hook（linkToPost）
 ├── theme/            # 主题系统
 │   ├── index.ts      # loadTheme / resolveThemeDir（esbuild bundle）
 │   └── render.ts     # renderPage（preact-render-to-string）
@@ -63,9 +65,9 @@ init → read → parse → filter → collect①(物理) → generate → merge
 - **插件 + 主题加载（init 阶段）**：`build()` 先加载主题并合并主题配置，创建 `SiteImpl`，再 `initCorePlugins()` 建注册表 + scoped API，`loadThemePlugins`/`loadSitePlugins` 加载插件，`new CoreApiImpl(...)` 得到主题用 `CoreAPI`；插件按文件名前缀注入**作用域化** API。
 - **hook 生命周期**：`initHooks()`（`hook.ts`）创建全部异步钩子；hook 插件经 `api.hook.*` 注册，核心在各阶段边界触发。
 - **生成器**（generate）：generator 插件经 `api.generator.register(name, (site) => Page[])` 注册，返回无源文件的虚拟 Page。
-- **renderer**（render）：`render` 为单一职责（Markdown → HTML+toc），经 `api.renderer.register` 覆盖默认；`beforeRender`/`afterRender` 可 hook。
-- **helper**：`api.helper.get(name)` 读取、`register(name, fn)` 注册；核心内置分类/分页/日期等 helper。
-- **草稿区**：`content/drafts/` 内文章强制 `draft`，生产阶段由 filter 剔除，dev 下经 `/draft/:slug/` 预览。
+- **renderer**（render）：`render` 为单一职责（Markdown → HTML+toc）；默认注册名为 `markdown`，覆盖时须 `api.renderer.register("markdown", fn)`（build 目前只取该名称，自定义名称暂未使用，见 TODO B1）。逐页并行渲染，`beforeRender`/`afterRender` 可 hook。
+- **helper**：`api.helper.get(name)` 读取、`register(name, fn)` 注册；核心内置分类/分页/日期/`themeAsset`/`linkToPost`/`taxonomyPages` 等 helper。
+- **草稿区**：`content/drafts/` 内文章强制 `draft`，生产阶段由 filter 剔除；dev 模式保留草稿，预览路径取决于集合的 `routePattern`（example 为 `/draft/:slug/`）。
 - **URL 冲突检测**（`checkUrlConflicts`）：merge 阶段对全部页面 URL 去重校验。
 
 ## 插件系统
@@ -110,14 +112,14 @@ export default function (api: RendererAPI) {
 
 - **Page**（`types/page.ts`）：单篇文章的统一抽象，含 `id`、`collection`、`url`、`slug`、`layout`、`draft`、`tags`/`categories`、`content`（渲染后 HTML）、`data`（其余 front-matter）、`metadata`（插件动态扩展）等。
 - **Collection**（`types/collection.ts`）：内容集合，聚合该集合全部 Page，支持按 `sortBy`/`sortOrder` 排序（`getPages(sorted)`）。
-- **Site**（`types/site.ts`）：全局站点对象，持有全部集合；提供 `pages`、`publishedPages`、`assets` 只读视图与 `getAssets(dir)` 查询。
+- **Site**（`types/site.ts`）：全局站点对象，持有全部集合；提供 `pages`、`posts`、`assets` 只读视图与 `getAssets(dir)` 查询。
 - **Asset**（`types/asset.ts`）：资源对象（文章专属 + 全局），含 `sourcePath`、`url`、`buffer`、`type`、`belongsTo`。
 
 ## 配置系统
 
-- **加载**（`config.ts`）：cosmiconfig 搜索 `blog.config.*`（ts/js/mjs/yaml/json），TS/ESM 经 jiti 加载。
-- **defineConfig**（`config/define.ts`）：对象或函数形式，统一并入默认值（`assetsDir`、`contentDir`、`markdown`、`server`、`cli` 等）。
-- **主题配置**（`loadThemeConfig`）：独立 `theme.config.*` 文件，与站点 `themeConfig` 内联合并，优先级：主题默认 < 站点 `theme.config.ts` < `blog.config.ts` 内联 `themeConfig`。
+- **加载**（`config.ts`）：cosmiconfig 搜索 `blog.config.*`（ts/js/mjs/yaml/json），TS/ESM 经 jiti 加载；结果与 `SITE_CONFIG_DEFAULTS` 合并（`assetsDir`、`contentDir`、`markdown`、`server`、`pluginsDir`、`archivesDir` 等）。
+- **默认值**（`config.ts` `SITE_CONFIG_DEFAULTS`）：整站构建与单文件渲染共用，避免两套默认值漂移。
+- **主题配置**（`loadThemeConfig`）：独立 `theme.config.*` 文件，覆盖主题自带默认配置（优先级：主题默认 < 站点 `theme.config.ts`）。
 
 ## 主题系统
 
@@ -125,7 +127,7 @@ export default function (api: RendererAPI) {
 - **preact 单实例**：preact 系列模块通过 alias + external 与核心进程共享同一实例，保证 `context`/`hooks` 与 `preact-render-to-string` 互通。
 - **helper 访问（无虚拟模块）**：`LayoutProps = { page, api }`，`api` 为 `CoreAPI`（`api.site` / `api.theme.config` / `api.helper`）；主题根布局将 `api` 注入 Preact Context，组件经 `api.helper.get("themeAsset")("...")` 使用 helper。
 - **渲染**（`renderPage`）：按 `page.layout` 选择布局，回退链 `精确 → default → page`，preact-render-to-string 输出 HTML。
-- **资源输出**：主题 `assetsDir` 内资源并入站点；`themeAssetsMode` 决定前缀（`merge → /<assetsDir>`、`namespace → /<assetsDir>/<theme>`，默认 assetsDir 为 assets）；`.less` 编译为 CSS（`_` 前缀 partial 仅作 @import 源）。
+- **资源输出**：主题 `assetsDir` 内资源并入站点；`themeAssetsMode` 决定前缀（`merge → /<assetsDir>`、`namespace → /<assetsDir>/<theme>`，默认 assetsDir 为 assets）；`.less` 编译为 CSS（`_` 前缀 partial 仅作 @import 源）。`themeAsset` helper 目前硬编码 `/assets`（未读取 `assetsDir`，见 TODO B2）。
 
 ## 资源处理
 
@@ -177,14 +179,14 @@ const { outFile, html } = await renderMarkdownFile({
 - `build(options)` — 主构建入口。
 - `renderMarkdownFile(options)` — 单文件 Markdown → 自包含 HTML（复用站点主题）。
 - `initHooks()` — 构建阶段 hook 集。
-- `loadSiteConfig` / `defineConfig` — 配置加载与定义。
+- `loadSiteConfig` — 配置加载（含 `SITE_CONFIG_DEFAULTS`）。
 - `loadTheme` / `renderPage` / `resolveThemeDir` — 主题相关。
 - `renderMarkdown` — 内置默认 Markdown 渲染（可作为默认 renderer）。
-- `RendererRegistryImpl` — renderer 注册表实现。
-- `parseCategories` / `buildCategoryTree` / `categoryPathToUrl` — 分类工具。
-- `pageUrl` / `paginate` / `pinSort` — 分页工具（以 helper 形式注册）。
-- `linkToPost(title, collection?)` — 生成文章 Markdown 链接 `[标题](url)`（不传集合时 posts 优先、非虚拟页面回退；未命中返回空串）。
-- `taxonomyPages()` — 分类/标签统计源：全部非虚拟集合的页面（按日期降序）。
+- `RendererRegistryImpl` / `GeneratorRegistryImpl` / `HelperRegistryImpl` — 注册表实现。
+- `initCorePlugins` / `registerCoreGenerators` / `registerCoreHelpers` / `loadThemePlugins` / `loadSitePlugins` — 插件/内置能力装配。
+- `parseCategories` / `buildCategoryTree` / `categoryPathToUrl` / `categoryPathToString` — 分类工具。
 - `scanAssets` / `resolveAssetRef` — 资源工具。
-- `SiteImpl` / `CollectionImpl` / `AsyncHookImpl` — 实现类。
+- `SiteImpl` / `CollectionImpl` / `AsyncHookImpl` / `CoreApiImpl` — 实现类。
+- `Logger` — 命名空间分级日志（`HULOG_LOG_LEVEL` / `NO_COLOR`）。
+- 分页与文章链接工具（`pageUrl` / `paginate` / `pinSort` / `linkToPost` / `taxonomyPages`）以**核心 helper** 形式注册，主题经 `api.helper.get(...)` 使用，不从入口直接导出。
 - API 类型：`CoreAPI`（主题用：`site` / `theme` / `helper`）、`Registries`（内部编排）、`GeneratorAPI` / `HookAPI` / `RendererAPI` / `HelperAPI`（按插件类型作用域化）、`RuntimeContext`。

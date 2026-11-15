@@ -5,4 +5,4 @@ packages:
   - "packages/*"
 
 overrides:
-  "@hulog/core": "workspace:*"
+  "@hulog/core": "workspace:^"

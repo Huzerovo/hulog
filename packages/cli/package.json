@@ -1,9 +1,26 @@
 {
   "name": "@hulog/cli",
   "version": "0.1.5",
-  "private": true,
   "type": "module",
-  "description": "生成器 CLI：init/dev/build/clean/new（开发服务器与热重载）",
+  "description": "生成器 CLI：init/dev/build/clean/new/publish/render（开发服务器与热重载）",
+  "keywords": [
+    "hulog",
+    "static-site-generator",
+    "blog",
+    "markdown",
+    "cli"
+  ],
+  "author": "Huzerovo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Huzerovo/hulog.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/Huzerovo/hulog#readme",
+  "bugs": {
+    "url": "https://github.com/Huzerovo/hulog/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -15,14 +32,21 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
-    "dev": "tsc -p tsconfig.json --watch"
+    "dev": "tsc -p tsconfig.json --watch",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "@hulog/core": "*",
+    "@hulog/core": "workspace:^",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
     "gray-matter": "^4.0.3",
@@ -31,5 +55,8 @@
   "devDependencies": {
     "@types/node": "^26.1.2",
     "@types/ws": "^8.18.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

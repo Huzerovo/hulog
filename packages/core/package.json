@@ -1,9 +1,26 @@
 {
   "name": "@hulog/core",
   "version": "0.1.5",
-  "private": true,
   "type": "module",
-  "description": "生成器核心：内容模型、构建管线、插件系统、主题加载",
+  "description": "生成器核心：内容模型、构建管线、插件系统、主题加载、单文件渲染",
+  "keywords": [
+    "hulog",
+    "static-site-generator",
+    "blog",
+    "markdown",
+    "preact"
+  ],
+  "author": "Huzerovo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Huzerovo/hulog.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/Huzerovo/hulog/tree/master/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/Huzerovo/hulog/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -12,13 +29,20 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json",
     "test": "node --import tsx --test test/*.test.ts",
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
-    "dev": "tsc -p tsconfig.json --watch"
+    "dev": "tsc -p tsconfig.json --watch",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@shikijs/rehype": "^4.4.2",
@@ -52,5 +76,8 @@
     "@types/less": "^3.0.8",
     "@types/node": "^26.1.2",
     "zod": "^4.4.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
