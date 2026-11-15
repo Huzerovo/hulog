@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@hulog/core': workspace:*
+  '@hulog/core': workspace:^
 
 importers:
 
@@ -21,7 +21,7 @@ importers:
   packages/cli:
     dependencies:
       '@hulog/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       chokidar:
         specifier: ^5.0.0
