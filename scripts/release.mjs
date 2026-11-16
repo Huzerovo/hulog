@@ -1,23 +1,26 @@
 #!/usr/bin/env node
 /**
- * 版本发布：同步更新 @hulog/core 与 @hulog/cli 的 version，并生成发布提交。
+ * 版本发布：独立更新 @hulog/core 或 @hulog/cli 的 version，并生成发布提交。
+ * hulog 根包不参与发布。
  *
  * 当前开发占位版本 0.0.0-development 会以 0.0.0 为基线递增：
- *   npm run release:patch  # 0.0.0-development → 0.0.1
- *   npm run release:minor  # 0.0.0-development → 0.1.0
- *   npm run release:major  # 0.0.0-development → 1.0.0
+ *   npm run release:core -- patch  # 0.0.0-development → 0.0.1
+ *   npm run release:core -- minor  # 0.0.0-development → 0.1.0
+ *   npm run release:core -- major  # 0.0.0-development → 1.0.0
  *
  * 用法：
- *   npm run release:patch
- *   npm run release:minor
- *   npm run release:major
- *   npm run release -- 1.2.3              # 指定版本（须大于当前版本）
- *   npm run release -- patch --dry-run    # 只打印，不修改
- *   npm run release -- patch --no-commit  # 修改并 add，不提交
- *   npm run release -- patch --tag        # 额外打 vX.Y.Z 轻量 tag
- *   npm run release -- 1.2.3 --force      # 允许非递增版本
+ *   npm run release:core -- patch
+ *   npm run release:cli  -- minor
+ *   npm run release:core -- 0.2.0
+ *   npm run release:cli  -- 0.1.6
+ *   npm run release:core -- patch --dry-run
+ *   npm run release:core -- patch --no-commit
+ *   npm run release:core -- patch --tag
+ *   npm run release:cli  -- 0.1.6 --force
  *
- * 注意：只提交两个 package.json，不带上其它已暂存改动。
+ * 注意：
+ * - 每次只处理一个包，只提交对应 package.json，不带上其它已暂存改动。
+ * - --tag 创建形如 core@0.2.0 / cli@0.1.6 的轻量 tag。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -25,20 +28,29 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PACKAGE_FILES = ["packages/core/package.json", "packages/cli/package.json"];
+const PACKAGES = {
+  core: { name: "@hulog/core", file: "packages/core/package.json" },
+  cli: { name: "@hulog/cli", file: "packages/cli/package.json" },
+};
 const PLACEHOLDER_VERSION = "0.0.0-development";
 const PLACEHOLDER_BASE = "0.0.0";
-const USAGE = `用法: npm run release -- <patch|minor|major|x.y.z> [选项]
+const USAGE = `用法:
+  npm run release:core -- <patch|minor|major|x.y.z> [选项]
+  npm run release:cli  -- <patch|minor|major|x.y.z> [选项]
+
+也可直接:
+  node scripts/release.mjs <core|cli> <patch|minor|major|x.y.z> [选项]
 
 选项:
   --dry-run    只打印将要发生的变更，不写文件/不提交
   --no-commit  只修改并 git add，不生成提交
-  --tag        提交后打轻量 tag（v<version>）
+  --tag        提交后打轻量 tag（<包名>@<版本>，如 core@0.2.0）
   --force      允许指定版本不大于当前版本
   --help       显示本帮助
 
 说明:
-  开发占位版本 ${PLACEHOLDER_VERSION} 按 ${PLACEHOLDER_BASE} 作为基线递增。`;
+  - 每次只更新一个包，hulog 根包不参与发布。
+  - 开发占位版本 ${PLACEHOLDER_VERSION} 按 ${PLACEHOLDER_BASE} 作为基线递增。`;
 
 function fail(message) {
   console.error(`✗ ${message}`);
@@ -94,32 +106,33 @@ if (flags.has("--help") || flags.has("-h") || targets.length === 0) {
   console.log(USAGE);
   process.exit(0);
 }
-if (targets.length > 1) fail(`参数过多: ${targets.join(" ")}\n\n${USAGE}`);
+if (targets.length !== 2) {
+  fail(`需要指定包和版本，例如 core patch 或 cli 0.1.6\n\n${USAGE}`);
+}
 
-const target = targets[0];
+const [packageKey, target] = targets;
+const packageInfo = PACKAGES[packageKey];
+if (!packageInfo) {
+  fail(`未知包: ${packageKey}\n可用包: ${Object.keys(PACKAGES).join(" / ")}`);
+}
+
 const dryRun = flags.has("--dry-run");
 const noCommit = flags.has("--no-commit");
 const tag = flags.has("--tag");
 const force = flags.has("--force");
 
-// 读取并校验两个包
-const packages = PACKAGE_FILES.map((rel) => {
-  const abs = path.join(ROOT, rel);
-  if (!fs.existsSync(abs)) fail(`未找到文件: ${rel}`);
-  const json = JSON.parse(fs.readFileSync(abs, "utf8"));
-  if (typeof json.version !== "string") fail(`${rel} 缺少 version 字段`);
-  return { rel, abs, json };
-});
-
-const rawVersions = [...new Set(packages.map((p) => p.json.version))];
-if (rawVersions.length !== 1) {
-  fail(
-    `两个包的版本不一致：${packages.map((p) => `${p.rel}=${p.json.version}`).join("，")}\n` +
-    "请先手动对齐版本，或分别发布两个包",
-  );
+// 读取并校验目标包
+const abs = path.join(ROOT, packageInfo.file);
+if (!fs.existsSync(abs)) fail(`未找到文件: ${packageInfo.file}`);
+const json = JSON.parse(fs.readFileSync(abs, "utf8"));
+if (json.name !== packageInfo.name) {
+  fail(`${packageInfo.file} 的 name 为 "${json.name}"，预期 "${packageInfo.name}"`);
+}
+if (typeof json.version !== "string") {
+  fail(`${packageInfo.file} 缺少 version 字段`);
 }
 
-const currentRaw = rawVersions[0];
+const currentRaw = json.version;
 const current = baseVersion(currentRaw);
 if (!parseVersion(current)) {
   fail(`当前版本号非法: ${currentRaw}`);
@@ -140,21 +153,21 @@ if (!force && compareVersion(next, current) <= 0) {
 
 const currentLabel =
   currentRaw === current ? current : `${currentRaw}（按 ${current} 递增）`;
+const tagName = `${packageKey}@${next}`;
+console.log(`包: ${packageInfo.name}`);
 console.log(`版本: ${currentLabel} → ${next}`);
-console.log(`文件: ${PACKAGE_FILES.join(", ")}`);
-console.log(`提交: release: 发布 ${next}${tag ? `（tag: v${next}）` : ""}`);
+console.log(`文件: ${packageInfo.file}`);
+console.log(`提交: chore(${packageKey}): 发布 ${next}${tag ? `（tag: ${tagName}）` : ""}`);
 if (dryRun) {
   console.log("（--dry-run：未修改任何文件）");
   process.exit(0);
 }
 
 // 写回（保持两空格缩进与键顺序）
-for (const pkg of packages) {
-  pkg.json.version = next;
-  fs.writeFileSync(pkg.abs, JSON.stringify(pkg.json, null, 2) + "\n");
-}
+json.version = next;
+fs.writeFileSync(abs, JSON.stringify(json, null, 2) + "\n");
 
-git(["add", ...PACKAGE_FILES]);
+git(["add", packageInfo.file]);
 if (noCommit) {
   console.log("✓ 已更新并暂存（--no-commit）");
   process.exit(0);
@@ -163,14 +176,14 @@ if (noCommit) {
 git([
   "commit",
   "-m",
-  `release: 发布 ${next}`,
+  `chore(${packageKey}): 发布 ${next}`,
   "-m",
-  `- @hulog/cli / @hulog/core 版本号统一升至 ${next}`,
+  `- ${packageInfo.name} 版本升至 ${next}`,
   "--",
-  ...PACKAGE_FILES,
+  packageInfo.file,
 ]);
 if (tag) {
-  git(["tag", `v${next}`]);
-  console.log(`✓ 已创建 tag: v${next}`);
+  git(["tag", tagName]);
+  console.log(`✓ 已创建 tag: ${tagName}`);
 }
-console.log(`✓ 已提交: release: 发布 ${next}`);
+console.log(`✓ 已提交: chore(${packageKey}): 发布 ${next}`);
