@@ -2,17 +2,22 @@
 /**
  * 版本发布：同步更新 @hulog/core 与 @hulog/cli 的 version，并生成发布提交。
  *
- * 用法：
- *   npm run release:patch           # 0.1.5 → 0.1.6
- *   npm run release:minor           # 0.1.5 → 0.2.0
- *   npm run release:major           # 0.1.5 → 1.0.0
- *   npm run release -- 1.2.3        # 指定版本（须大于当前版本）
- *   npm run release -- patch --dry-run     # 只打印，不修改
- *   npm run release -- patch --no-commit   # 修改并 add，不提交
- *   npm run release -- patch --tag         # 额外打 vX.Y.Z 轻量 tag
- *   npm run release -- 1.2.3 --force       # 允许非递增版本
+ * 当前开发占位版本 0.0.0-development 会以 0.0.0 为基线递增：
+ *   npm run release:patch  # 0.0.0-development → 0.0.1
+ *   npm run release:minor  # 0.0.0-development → 0.1.0
+ *   npm run release:major  # 0.0.0-development → 1.0.0
  *
- * 注意：只提交两个 package.json（不带上其它已暂存改动）。
+ * 用法：
+ *   npm run release:patch
+ *   npm run release:minor
+ *   npm run release:major
+ *   npm run release -- 1.2.3              # 指定版本（须大于当前版本）
+ *   npm run release -- patch --dry-run    # 只打印，不修改
+ *   npm run release -- patch --no-commit  # 修改并 add，不提交
+ *   npm run release -- patch --tag        # 额外打 vX.Y.Z 轻量 tag
+ *   npm run release -- 1.2.3 --force      # 允许非递增版本
+ *
+ * 注意：只提交两个 package.json，不带上其它已暂存改动。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -21,6 +26,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE_FILES = ["packages/core/package.json", "packages/cli/package.json"];
+const PLACEHOLDER_VERSION = "0.0.0-development";
+const PLACEHOLDER_BASE = "0.0.0";
 const USAGE = `用法: npm run release -- <patch|minor|major|x.y.z> [选项]
 
 选项:
@@ -28,7 +35,10 @@ const USAGE = `用法: npm run release -- <patch|minor|major|x.y.z> [选项]
   --no-commit  只修改并 git add，不生成提交
   --tag        提交后打轻量 tag（v<version>）
   --force      允许指定版本不大于当前版本
-  --help       显示本帮助`;
+  --help       显示本帮助
+
+说明:
+  开发占位版本 ${PLACEHOLDER_VERSION} 按 ${PLACEHOLDER_BASE} 作为基线递增。`;
 
 function fail(message) {
   console.error(`✗ ${message}`);
@@ -39,6 +49,11 @@ function fail(message) {
 function parseVersion(value) {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(value);
   return m ? { major: +m[1], minor: +m[2], patch: +m[3] } : null;
+}
+
+/** 占位开发版本按 0.0.0 计算，其他版本原样参与比较 */
+function baseVersion(value) {
+  return value === PLACEHOLDER_VERSION ? PLACEHOLDER_BASE : value;
 }
 
 /** 版本比较：a > b 返回正数 */
@@ -95,11 +110,20 @@ const packages = PACKAGE_FILES.map((rel) => {
   if (typeof json.version !== "string") fail(`${rel} 缺少 version 字段`);
   return { rel, abs, json };
 });
-const versions = [...new Set(packages.map((p) => p.json.version))];
-if (versions.length !== 1) {
-  fail(`两个包的版本不一致：${packages.map((p) => `${p.rel}=${p.json.version}`).join("，")}\n请先手动对齐版本`);
+
+const rawVersions = [...new Set(packages.map((p) => p.json.version))];
+if (rawVersions.length !== 1) {
+  fail(
+    `两个包的版本不一致：${packages.map((p) => `${p.rel}=${p.json.version}`).join("，")}\n` +
+    "请先手动对齐版本，或分别发布两个包",
+  );
 }
-const current = versions[0];
+
+const currentRaw = rawVersions[0];
+const current = baseVersion(currentRaw);
+if (!parseVersion(current)) {
+  fail(`当前版本号非法: ${currentRaw}`);
+}
 
 // 计算目标版本
 let next;
@@ -114,9 +138,11 @@ if (!force && compareVersion(next, current) <= 0) {
   fail(`目标版本 ${next} 不大于当前版本 ${current}（如需强制使用 --force）`);
 }
 
-console.log(`版本: ${current} → ${next}`);
+const currentLabel =
+  currentRaw === current ? current : `${currentRaw}（按 ${current} 递增）`;
+console.log(`版本: ${currentLabel} → ${next}`);
 console.log(`文件: ${PACKAGE_FILES.join(", ")}`);
-console.log(`提交: chore: 发布 ${next}${tag ? `（tag: v${next}）` : ""}`);
+console.log(`提交: release: 发布 ${next}${tag ? `（tag: v${next}）` : ""}`);
 if (dryRun) {
   console.log("（--dry-run：未修改任何文件）");
   process.exit(0);
@@ -130,14 +156,14 @@ for (const pkg of packages) {
 
 git(["add", ...PACKAGE_FILES]);
 if (noCommit) {
-  console.log(`✓ 已更新并暂存（--no-commit）`);
+  console.log("✓ 已更新并暂存（--no-commit）");
   process.exit(0);
 }
 
 git([
   "commit",
   "-m",
-  `chore: 发布 ${next}`,
+  `release: 发布 ${next}`,
   "-m",
   `- @hulog/cli / @hulog/core 版本号统一升至 ${next}`,
   "--",
@@ -147,4 +173,4 @@ if (tag) {
   git(["tag", `v${next}`]);
   console.log(`✓ 已创建 tag: v${next}`);
 }
-console.log(`✓ 已提交: chore: 发布 ${next}`);
+console.log(`✓ 已提交: release: 发布 ${next}`);
