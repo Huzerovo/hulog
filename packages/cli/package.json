@@ -1,6 +1,6 @@
 {
   "name": "@hulog/cli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "生成器 CLI：init/dev/build/clean/new/publish/render（开发服务器与热重载）",
   "keywords": [
@@ -46,7 +46,7 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@hulog/core": "workspace:^",
+    "@hulog/core": "^0.1.5",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
     "gray-matter": "^4.0.3",
