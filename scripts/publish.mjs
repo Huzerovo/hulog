@@ -9,11 +9,12 @@
  * 4. 先发布 @hulog/core，再发布 @hulog/cli
  *
  * 用法：
- *   npm run publish
- *   npm run publish -- --dry-run
- *   npm run publish -- --tag next
- *   npm run publish -- --otp 123456
+ *   npm run publish:packages
+ *   npm run publish:packages -- --dry-run
+ *   npm run publish:packages -- --tag next
+ *   npm run publish:packages -- --otp 123456
  *
+ * 注意：hulog 根包是 private，不发布；只发布 packages/core 与 packages/cli。
  * 其余参数会透传给 npm publish；默认附加 --access public。
  */
 import fs from "node:fs";
@@ -28,19 +29,20 @@ const CLI_DIR = path.join(ROOT, "packages/cli");
 const CORE_FILE = path.join(CORE_DIR, "package.json");
 const CLI_FILE = path.join(CLI_DIR, "package.json");
 const PLACEHOLDER_VERSION = "0.0.0-development";
-const USAGE = `用法: npm run publish -- [npm publish 选项]
+const USAGE = `用法: npm run publish:packages -- [npm publish 选项]
 
 说明:
+  hulog 根包不发布，只发布 packages/core 与 packages/cli。
   1. 校验 @hulog/core / @hulog/cli 版本
   2. 校验 CLI 的 @hulog/core 依赖为 ^<core version>
   3. 执行根目录 build（core + cli）
   4. 跳过 npm 上已存在的版本，依次发布 core、cli
 
 示例:
-  npm run publish
-  npm run publish -- --dry-run
-  npm run publish -- --tag next
-  npm run publish -- --otp 123456
+  npm run publish:packages
+  npm run publish:packages -- --dry-run
+  npm run publish:packages -- --tag next
+  npm run publish:packages -- --otp 123456
 
 其余参数会透传给 npm publish；默认附加 --access public。`;
 
