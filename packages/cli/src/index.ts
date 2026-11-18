@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { initCmd } from "./commands/init.js";
 import { buildCmd } from "./commands/build.js";
@@ -9,12 +10,16 @@ import { devCmd } from "./commands/dev.js";
 import { renderCmd } from "./commands/render.js";
 import { run } from "./run.js";
 
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { version: string };
+
 const program = new Command();
 
 program
   .name(process.title)
   .description("静态博客生成器（Hexo 内容模型 + TSX 主题）")
-  .version("0.1.0")
+  .version(packageJson.version)
   .option("-v, --verbose", "输出 debug 级日志")
   .option("-q, --quiet", "仅输出 warn/error 日志");
 
