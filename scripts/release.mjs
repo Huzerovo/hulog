@@ -20,6 +20,8 @@
  *
  * 注意：
  * - 每次只处理一个包，只提交对应 package.json，不带上其它已暂存改动。
+ * - release:cli 会读取 packages/core/package.json 的当前版本，并把 CLI 的
+ *   @hulog/core 依赖更新为 ^<core version>（core 需先 release）。
  * - --tag 创建形如 core@0.2.0 / cli@0.1.6 的轻量 tag。
  */
 import fs from "node:fs";
@@ -50,6 +52,7 @@ const USAGE = `用法:
 
 说明:
   - 每次只更新一个包，hulog 根包不参与发布。
+  - release:cli 会把 @hulog/core 依赖更新为当前 core 版本（^<version>），需先 release core。
   - 开发占位版本 ${PLACEHOLDER_VERSION} 按 ${PLACEHOLDER_BASE} 作为基线递增。`;
 
 function fail(message) {
@@ -151,11 +154,38 @@ if (!force && compareVersion(next, current) <= 0) {
   fail(`目标版本 ${next} 不大于当前版本 ${current}（如需强制使用 --force）`);
 }
 
+// release:cli 时同步 core 依赖到当前 core 版本
+let cliCoreDep;
+if (packageKey === "cli") {
+  const coreFile = path.join(ROOT, PACKAGES.core.file);
+  if (!fs.existsSync(coreFile)) {
+    fail(`未找到 ${PACKAGES.core.file}，无法确定 CLI 的 core 依赖版本`);
+  }
+  const coreJson = JSON.parse(fs.readFileSync(coreFile, "utf8"));
+  if (coreJson.name !== PACKAGES.core.name) {
+    fail(`${PACKAGES.core.file} 的 name 为 "${coreJson.name}"，预期 "${PACKAGES.core.name}"`);
+  }
+  if (coreJson.version === PLACEHOLDER_VERSION) {
+    fail(
+      `${PACKAGES.core.name} 仍为开发占位版本 ${PLACEHOLDER_VERSION}\n` +
+        "请先运行 npm run release:core -- <patch|minor|major|x.y.z>",
+    );
+  }
+  if (typeof coreJson.version !== "string" || !parseVersion(coreJson.version)) {
+    fail(`${PACKAGES.core.name} 的版本号非法: ${coreJson.version}`);
+  }
+  cliCoreDep = `^${coreJson.version}`;
+}
+
 const currentLabel =
   currentRaw === current ? current : `${currentRaw}（按 ${current} 递增）`;
 const tagName = `${packageKey}@${next}`;
 console.log(`包: ${packageInfo.name}`);
 console.log(`版本: ${currentLabel} → ${next}`);
+if (cliCoreDep) {
+  const oldDep = json.dependencies?.[PACKAGES.core.name] ?? "(未设置)";
+  console.log(`core 依赖: ${oldDep} → ${cliCoreDep}`);
+}
 console.log(`文件: ${packageInfo.file}`);
 console.log(`提交: chore(${packageKey}): 发布 ${next}${tag ? `（tag: ${tagName}）` : ""}`);
 if (dryRun) {
@@ -165,6 +195,12 @@ if (dryRun) {
 
 // 写回（保持两空格缩进与键顺序）
 json.version = next;
+if (cliCoreDep) {
+  json.dependencies = {
+    ...(json.dependencies ?? {}),
+    [PACKAGES.core.name]: cliCoreDep,
+  };
+}
 fs.writeFileSync(abs, JSON.stringify(json, null, 2) + "\n");
 
 git(["add", packageInfo.file]);
@@ -173,12 +209,17 @@ if (noCommit) {
   process.exit(0);
 }
 
+const commitBody = [`- ${packageInfo.name} 版本升至 ${next}`];
+if (cliCoreDep) {
+  commitBody.push(`- ${PACKAGES.core.name} 依赖升至 ${cliCoreDep}`);
+}
+
 git([
   "commit",
   "-m",
   `chore(${packageKey}): 发布 ${next}`,
   "-m",
-  `- ${packageInfo.name} 版本升至 ${next}`,
+  commitBody.join("\n"),
   "--",
   packageInfo.file,
 ]);
