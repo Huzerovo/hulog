@@ -24,17 +24,18 @@ export class SiteImpl implements Site {
   get posts(): Page[] {
     const posts = this.collections.get("posts")?.getPages() ?? [];
     const drafts = this.collections.get("drafts")?.getPages() ?? [];
+    const ret = posts;
 
     if (this._config?.renderDraft) {
-      // 默认按日期降序排序
-      return [...posts, ...drafts].sort((a, b) => {
-        const da = a.date?.getTime() ?? 0;
-        const db = b.date?.getTime() ?? 0;
-        return db - da;
-      });
-    } else {
-      return posts.filter((p) => !p.draft);
+      ret.concat(drafts);
     }
+
+    // 默认按日期降序排序
+    return ret.sort((a, b) => {
+      const da = a.date?.getTime() ?? 0;
+      const db = b.date?.getTime() ?? 0;
+      return db - da;
+    });
 
   }
 
